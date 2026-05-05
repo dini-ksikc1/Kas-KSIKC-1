@@ -157,7 +157,7 @@ select:focus,input:focus{border-color:#1a3a5c;}
 <div id="pa"></div>
 
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbx8yTxT3PEAGkfci3pVdBVoUuB2B8ObW3Ws5aFIPOEWj-DFXNYsI27Pk0zp-HoNKH66/exec';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwkTvyC1pq1fNBuC0QBeCYu5tyYI14uZ9w8xORvRAzmZCCQjYDKLlVN-oAa3-xEYH39/exec';
 
 const fmt=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 const fmtS=n=>n>=1e6?'Rp'+(n/1e6).toFixed(2)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(0)+'rb':fmt(n);
@@ -272,6 +272,53 @@ function parseTxCSV(rows){
   return {txs,saldoAwal};
 }
 
+function parseMon(rows){
+  const members=[];
+  if(!rows||rows.length<3) return members;
+  // Find header row with 'NAMA'
+  let hIdx=-1;
+  for(let i=0;i<Math.min(8,rows.length);i++){
+    if(rows[i].some(c=>String(c||'').toLowerCase().trim()==='nama')){hIdx=i;break;}
+  }
+  if(hIdx<0) return members;
+  const hrow=rows[hIdx];
+  const namaCol=hrow.findIndex(c=>String(c||'').toLowerCase().trim()==='nama');
+  if(namaCol<0) return members;
+  // Month name map
+  const MMAP={'apr':4,'april':4,'may':5,'mei':5,'jun':6,'juni':6,'jul':7,'juli':7,
+    'aug':8,'agu':8,'agust':8,'agustus':8,'sep':9,'sept':9,'okt':10,'oct':10,'oktober':10,
+    'nov':11,'des':12,'dec':12,'jan':1,'feb':2,'mar':3,'maret':3};
+  // Build col->{year,month} map — first 9 month cols = 2025, rest = 2026
+  const colMap={};let mCnt=0;
+  for(let c=namaCol+1;c<hrow.length;c++){
+    const h=String(hrow[c]||'').toLowerCase().trim();
+    const m=MMAP[h]||MMAP[h.substring(0,3)];
+    if(m!==undefined){colMap[c]={year:mCnt<9?2025:2026,month:m};mCnt++;}
+  }
+  // Parse each member row
+  for(let i=hIdx+1;i<rows.length;i++){
+    const row=rows[i];if(!row) continue;
+    const nama=String(row[namaCol]||'').trim();
+    if(!nama||nama.toLowerCase().includes('total')||nama.toLowerCase().includes('jumlah')) continue;
+    let iuran=25000,lastPaid2026=0,firstPaid2026=0,hasPaid2025=false;
+    Object.entries(colMap).forEach(([cStr,{year,month}])=>{
+      const v=String(row[parseInt(cStr)]||'').replace(/[Rp\s\.]/g,'').replace(',','.');
+      const amt=parseFloat(v);
+      if(amt>0){
+        if(amt>iuran) iuran=amt;
+        if(year===2025) hasPaid2025=true;
+        if(year===2026){
+          if(month>lastPaid2026) lastPaid2026=month;
+          if(firstPaid2026===0||month<firstPaid2026) firstPaid2026=month;
+        }
+      }
+    });
+    const joinMonth=hasPaid2025?1:(firstPaid2026||3);
+    members.push({n:nama,j:iuran>=100000?'P':'L',iu:iuran,lp:lastPaid2026,join:joinMonth});
+  }
+  return members;
+}
+
 // Global state
 let ALLTX=[], SALDO_AWAL_2025=1978291;
 let ST={tab:0,fil:{q:'',tipe:'all',yr:'all'},jFil:'all',repM:13,bulanFil:12};
@@ -295,7 +342,7 @@ const MBR=[
   {n:'Agasi',j:'L',iu:25000,lp:0},{n:'Faishal',j:'L',iu:25000,lp:0},
   {n:'Reddy',j:'L',iu:25000,lp:0},
 ];
-const DUE=5;
+let DUE=5;
 const MNMS=['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const RAB_DATA=[
   {n:'Konsumsi DKO Bulanan',nom:'Rp 25.000/orang',kat:'Konsumsi DKO',note:'~30–35 org/bln'},
@@ -338,9 +385,21 @@ async function loadData(){
       const r25=parseTxCSV(data.t25), r26=parseTxCSV(data.t26);
       SALDO_AWAL_2025=r25.saldoAwal||1978291;
       ALLTX=[...r25.txs,...r26.txs];
+      // Parse monitoring sheet → update MBR dynamically
+      if(data.mon){
+        const monMembers=parseMon(data.mon);
+        if(monMembers.length>0){
+          MBR.length=0;
+          monMembers.forEach(m=>MBR.push(m));
+        }
+      }
+      // Dynamic DUE = current month in 2026
       const now=new Date();
+      DUE=now.getFullYear()===2026?now.getMonth()+1:5;
+      ST.repM=Math.min(RPT_MONTHS.length-1, DUE+8); // point to current month in laporan
+      const nd=new Date();
       document.getElementById('last-update').textContent=
-        `Data dari Google Sheets · Dimuat: ${fmtDate(now)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        `Data dari Google Sheets · Dimuat: ${fmtDate(nd)} ${String(nd.getHours()).padStart(2,'0')}:${String(nd.getMinutes()).padStart(2,'0')}`;
       document.getElementById('loading').style.display='none';
       document.getElementById('app').style.display='block';
       render();
