@@ -288,12 +288,18 @@ function parseMon(rows){
   const MMAP={'apr':4,'april':4,'may':5,'mei':5,'jun':6,'juni':6,'jul':7,'juli':7,
     'aug':8,'agu':8,'agust':8,'agustus':8,'sep':9,'sept':9,'okt':10,'oct':10,'oktober':10,
     'nov':11,'des':12,'dec':12,'jan':1,'feb':2,'mar':3,'maret':3};
-  // Build col->{year,month} map — first 9 month cols = 2025, rest = 2026
-  const colMap={};let mCnt=0;
+  // Build col->{year,month} — detect year change when month goes backwards (12→1)
+  const colMap={};
+  let prevMonth=0, curYear=2025;
   for(let c=namaCol+1;c<hrow.length;c++){
     const h=String(hrow[c]||'').toLowerCase().trim();
     const m=MMAP[h]||MMAP[h.substring(0,3)];
-    if(m!==undefined){colMap[c]={year:mCnt<9?2025:2026,month:m};mCnt++;}
+    if(m!==undefined){
+      // When month resets to small number after going high, year changes
+      if(prevMonth>=10&&m<=3) curYear=2026;
+      colMap[c]={year:curYear,month:m};
+      prevMonth=m;
+    }
   }
   // Parse each member row
   for(let i=hIdx+1;i<rows.length;i++){
@@ -302,8 +308,14 @@ function parseMon(rows){
     if(!nama||nama.toLowerCase().includes('total')||nama.toLowerCase().includes('jumlah')) continue;
     let iuran=25000,lastPaid2026=0,firstPaid2026=0,hasPaid2025=false;
     Object.entries(colMap).forEach(([cStr,{year,month}])=>{
-      const v=String(row[parseInt(cStr)]||'').replace(/[Rp\s\.]/g,'').replace(',','.');
-      const amt=parseFloat(v);
+      const raw=row[parseInt(cStr)];
+      // Handle both number (from Apps Script) and string formats
+      let amt=0;
+      if(typeof raw==='number') amt=raw;
+      else{
+        const v=String(raw||'').replace(/[Rp\s\.]/g,'').replace(',','.');
+        amt=parseFloat(v)||0;
+      }
       if(amt>0){
         if(amt>iuran) iuran=amt;
         if(year===2025) hasPaid2025=true;
