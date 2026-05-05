@@ -275,53 +275,79 @@ function parseTxCSV(rows){
 function parseMon(rows){
   const members=[];
   if(!rows||rows.length<3) return members;
+  const MMAP={'apr':4,'april':4,'may':5,'mei':5,'jun':6,'juni':6,'jul':7,'juli':7,
+    'aug':8,'agu':8,'agust':8,'agustus':8,'sep':9,'sept':9,'okt':10,'oct':10,'oktober':10,
+    'nov':11,'nopember':11,'des':12,'desember':12,'dec':12,
+    'jan':1,'januari':1,'feb':2,'februari':2,'mar':3,'maret':3};
+
   // Find header row with 'NAMA'
   let hIdx=-1;
-  for(let i=0;i<Math.min(8,rows.length);i++){
+  for(let i=0;i<Math.min(10,rows.length);i++){
     if(rows[i].some(c=>String(c||'').toLowerCase().trim()==='nama')){hIdx=i;break;}
   }
   if(hIdx<0) return members;
   const hrow=rows[hIdx];
   const namaCol=hrow.findIndex(c=>String(c||'').toLowerCase().trim()==='nama');
   if(namaCol<0) return members;
-  // Month name map
-  const MMAP={'apr':4,'april':4,'may':5,'mei':5,'jun':6,'juni':6,'jul':7,'juli':7,
-    'aug':8,'agu':8,'agust':8,'agustus':8,'sep':9,'sept':9,'okt':10,'oct':10,'oktober':10,
-    'nov':11,'des':12,'dec':12,'jan':1,'feb':2,'mar':3,'maret':3};
-  // Build col->{year,month} — detect year change when month goes backwards (12→1)
-  const colMap={};
-  let prevMonth=0, curYear=2025;
-  for(let c=namaCol+1;c<hrow.length;c++){
-    const h=String(hrow[c]||'').toLowerCase().trim();
-    const m=MMAP[h]||MMAP[h.substring(0,3)];
-    if(m!==undefined){
-      // When month resets to small number after going high, year changes
-      if(prevMonth>=10&&m<=3) curYear=2026;
-      colMap[c]={year:curYear,month:m};
-      prevMonth=m;
+
+  // Look for "2026" label in rows above header to find where 2026 cols start
+  let yr2026StartCol=-1;
+  for(let r=0;r<hIdx;r++){
+    const row=rows[r];if(!row) continue;
+    for(let c=namaCol+1;c<row.length;c++){
+      if(String(row[c]||'').includes('2026')&&yr2026StartCol<0) yr2026StartCol=c;
     }
   }
-  // Parse each member row
+
+  // Build colMap from month names in header row
+  const colMap={};
+  let prevM=0,curYr=2025,mCnt=0;
+  for(let c=namaCol+1;c<hrow.length;c++){
+    const h=String(hrow[c]||'').toLowerCase().trim();
+    const m=MMAP[h]||MMAP[h.substring(0,3)]||MMAP[h.substring(0,4)];
+    if(m!==undefined){
+      // Use year label if found, otherwise use month sequence
+      if(yr2026StartCol>0) curYr=c>=yr2026StartCol?2026:2025;
+      else if(prevM>=10&&m<=3) curYr=2026;
+      colMap[c]={year:curYr,month:m};
+      prevM=m;mCnt++;
+    }
+  }
+
+  // Fallback: if no month names found, use position-based mapping
+  if(mCnt===0){
+    const m25=[4,5,6,7,8,9,10,11,12],m26=[1,2,3,4,5,6,7,8,9,10,11,12];
+    let ci=0;
+    for(let c=namaCol+1;c<hrow.length&&ci<21;c++){
+      const yr=ci<9?2025:2026;
+      const mo=ci<9?m25[ci]:m26[ci-9];
+      if(mo) colMap[c]={year:yr,month:mo};
+      ci++;
+    }
+  }
+
+  // Helper to parse payment amount
+  function parseAmt(raw){
+    if(raw===null||raw===undefined||raw==='') return 0;
+    if(typeof raw==='number') return Math.abs(raw);
+    const v=String(raw).replace(/[Rp\s]/g,'').replace(/\./g,'').replace(',','.');
+    return Math.abs(parseFloat(v)||0);
+  }
+
+  // Parse member rows
   for(let i=hIdx+1;i<rows.length;i++){
     const row=rows[i];if(!row) continue;
     const nama=String(row[namaCol]||'').trim();
-    if(!nama||nama.toLowerCase().includes('total')||nama.toLowerCase().includes('jumlah')) continue;
+    if(!nama||/total|jumlah|keterangan/i.test(nama)) continue;
     let iuran=25000,lastPaid2026=0,firstPaid2026=0,hasPaid2025=false;
     Object.entries(colMap).forEach(([cStr,{year,month}])=>{
-      const raw=row[parseInt(cStr)];
-      // Handle both number (from Apps Script) and string formats
-      let amt=0;
-      if(typeof raw==='number') amt=raw;
-      else{
-        const v=String(raw||'').replace(/[Rp\s\.]/g,'').replace(',','.');
-        amt=parseFloat(v)||0;
-      }
+      const amt=parseAmt(row[parseInt(cStr)]);
       if(amt>0){
         if(amt>iuran) iuran=amt;
         if(year===2025) hasPaid2025=true;
         if(year===2026){
           if(month>lastPaid2026) lastPaid2026=month;
-          if(firstPaid2026===0||month<firstPaid2026) firstPaid2026=month;
+          if(!firstPaid2026||month<firstPaid2026) firstPaid2026=month;
         }
       }
     });
