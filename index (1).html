@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pengelolaan Kas — Subdirektorat KSIKC I</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--green:#2e7d32;--green-bg:#e8f5e9;--red:#c62828;--red-bg:#ffebee;--orange:#e65100;--orange-bg:#fff3e0;--blue:#1565c0;--blue-bg:#e3f2fd;--border:#e0e0e0;--border2:#ccc;--bg:#f0f2f5;--bg2:#f5f5f5;--text:#1a1a1a;--text2:#555;--text3:#999;--r:8px;--rl:12px;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:#1a3a5c;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.topbar-l h1{font-size:15px;font-weight:700;}
+.topbar-l p{font-size:11px;opacity:.65;margin-top:2px;}
+.topbar-r{display:flex;align-items:center;gap:10px;}
+.saldo-pill{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:5px 14px;font-size:13px;font-weight:700;}
+.refresh-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:var(--r);padding:6px 12px;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;}
+.refresh-btn:hover{background:rgba(255,255,255,.2);}
+.main{max-width:1100px;margin:0 auto;padding:20px 16px;}
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:#1a3a5c;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{color:var(--text2);font-size:14px;}
+/* Error */
+.error-box{background:#ffebee;border:1px solid #ef9a9a;border-radius:var(--rl);padding:20px 24px;margin-top:20px;}
+.error-box h3{color:var(--red);font-size:14px;margin-bottom:8px;}
+.error-box p{color:#c62828;font-size:13px;line-height:1.6;}
+.error-box ol{margin-left:20px;margin-top:8px;font-size:13px;color:#c62828;line-height:1.8;}
+/* Tabs */
+.tabs{display:flex;gap:2px;background:#fff;border-radius:var(--rl);padding:4px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow-x:auto;}
+.tab{flex:1;padding:8px 6px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--text2);border-radius:var(--r);white-space:nowrap;min-width:70px;transition:all .15s;font-weight:500;}
+.tab:hover{background:var(--bg2);}
+.tab.a{background:#1a3a5c;color:#fff;font-weight:700;}
+/* Cards */
+.smg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+.sm{background:#fff;border-radius:var(--rl);padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.sl{font-size:10px;color:var(--text2);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.sv{font-size:18px;font-weight:700;}
+.sv.g{color:var(--green);}
+.sv.r{color:var(--red);}
+.ss{font-size:11px;color:var(--text3);margin-top:3px;}
+.card{background:#fff;border-radius:var(--rl);padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.card:last-child{margin-bottom:0;}
+.ct{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.ct-r{display:flex;gap:6px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+/* Form elements */
+select,input[type=text]{height:34px;padding:0 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--r);background:#fff;color:var(--text);outline:none;}
+select:focus,input:focus{border-color:#1a3a5c;}
+.fb{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.fb input[type=text]{flex:1;min-width:160px;}
+/* Transaction list */
+.txl{max-height:380px;overflow-y:auto;}
+.txi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.txi:last-child{border:none;}
+.ic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:700;}
+.ic.in{background:var(--green-bg);color:var(--green);}
+.ic.out{background:var(--red-bg);color:var(--red);}
+.txinf{flex:1;min-width:0;}
+.txd{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.txm{font-size:11px;color:var(--text2);margin-top:2px;}
+.txa{font-size:13px;font-weight:700;text-align:right;flex-shrink:0;}
+.txa.in{color:var(--green);}
+.txa.out{color:var(--red);}
+.txb{font-size:10px;color:var(--text3);}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;}
+.tgd{background:var(--bg2);color:var(--text2);}
+.tgi{background:var(--green-bg);color:var(--green);}
+.tgo{background:var(--red-bg);color:var(--red);}
+.tgw{background:var(--orange-bg);color:var(--orange);}
+/* Progress bar */
+.pb{height:5px;background:var(--bg2);border-radius:3px;margin-top:4px;overflow:hidden;}
+.pfg{height:100%;border-radius:3px;background:var(--green);}
+.pfr{height:100%;border-radius:3px;background:var(--red);}
+/* Monitoring */
+.mrow{display:grid;grid-template-columns:100px 1fr 1fr 100px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.mrow:last-child{border:none;}
+.mrow.th{font-size:11px;color:var(--text2);font-weight:700;padding-bottom:6px;text-transform:uppercase;}
+.yl{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block;margin:6px 0;font-weight:600;}
+.y25{background:var(--blue-bg);color:var(--blue);}
+.y26{background:var(--orange-bg);color:var(--orange);}
+/* Buttons */
+.btn{padding:7px 14px;border-radius:var(--r);border:1px solid var(--border2);background:#fff;color:var(--text2);font-size:12px;cursor:pointer;font-weight:500;}
+.btn:hover{background:var(--bg2);}
+.btn.act{background:#1a3a5c;color:#fff;border-color:#1a3a5c;}
+/* Notif */
+.nbox{border-radius:var(--r);padding:10px 14px;margin-bottom:8px;font-size:12px;display:flex;align-items:center;gap:10px;font-weight:500;}
+.nr{background:var(--red-bg);color:var(--red);}
+.nw{background:var(--orange-bg);color:var(--orange);}
+.ng{background:var(--green-bg);color:var(--green);}
+/* Note */
+.note{background:var(--bg2);border-radius:var(--r);padding:12px;font-size:12px;color:var(--text2);line-height:1.7;border:1px solid var(--border);}
+/* RAB */
+.rab-row{display:grid;grid-template-columns:1fr 140px 120px 70px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.rab-row:last-child{border:none;}
+/* Member */
+.mbr-row{display:grid;grid-template-columns:1fr 70px 100px 100px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.mbr-row:last-child{border:none;}
+/* Info update */
+.info-bar{background:var(--blue-bg);border:1px solid #90caf9;border-radius:var(--r);padding:8px 14px;font-size:11px;color:var(--blue);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+/* Empty */
+.empty{text-align:center;padding:2rem;color:var(--text3);font-size:13px;}
+/* Print */
+@media print{
+  .topbar,.tabs,.fb,.btn,.ct-r,.info-bar{display:none!important;}
+  .main{padding:0;}body{background:#fff;}
+  #pa{display:block!important;padding:24px;font-family:'Times New Roman',serif;color:#000;}
+  #root{display:none!important;}
+  #pa .ph{text-align:center;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:16px;}
+  #pa .ph h2{font-size:16px;font-weight:bold;}
+  #pa .ph h3{font-size:13px;font-weight:normal;margin-top:4px;}
+  #pa .ph p{font-size:11px;color:#555;margin-top:4px;}
+  #pa table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;}
+  #pa th{background:#f0f0f0;border:1px solid #999;padding:5px 8px;text-align:left;}
+  #pa td{border:1px solid #ccc;padding:4px 8px;}
+  #pa td.r{text-align:right;}
+  #pa .psum{background:#f9f9f9;border:1px solid #ccc;padding:10px;margin:10px 0;font-size:12px;}
+  #pa .psum-row{display:flex;justify-content:space-between;padding:3px 0;}
+  #pa .psum-row.bold{font-weight:bold;border-top:1px solid #ccc;margin-top:4px;padding-top:6px;}
+  #pa .psub{font-size:13px;font-weight:bold;margin:14px 0 6px;}
+  #pa .psig{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:40px;font-size:11px;text-align:center;}
+  #pa .psig div{border-top:1px solid #000;padding-top:6px;}
+}
+#pa{display:none;}
+@media(max-width:700px){
+  .smg{grid-template-columns:1fr 1fr;}
+  .g2{grid-template-columns:1fr;}
+  .mbr-row{grid-template-columns:1fr 70px;}
+  .rab-row{grid-template-columns:1fr 90px;}
+  .mrow{grid-template-columns:80px 1fr 1fr 80px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-l">
+    <h1>Pengelolaan Kas · Subdirektorat KSIKC I</h1>
+    <p id="last-update">Memuat data dari Google Sheets...</p>
+  </div>
+  <div class="topbar-r">
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+    <span class="saldo-pill" id="saldo-top">—</span>
+  </div>
+</div>
+
+<div class="main">
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Mengambil data dari Google Sheets...</p>
+  </div>
+  <div id="app" style="display:none">
+    <div class="tabs" id="tab-bar"></div>
+    <div id="root"></div>
+  </div>
+</div>
+<div id="pa"></div>
+
+<script>
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbx8yTxT3PEAGkfci3pVdBVoUuB2B8ObW3Ws5aFIPOEWj-DFXNYsI27Pk0zp-HoNKH66/exec';
+
+const fmt=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
+const fmtS=n=>n>=1e6?'Rp'+(n/1e6).toFixed(2)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(0)+'rb':fmt(n);
+
+function fmtDate(d){
+  if(!d) return '';
+  return `${String(d.getDate()).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function parseCSVText(text){
+  const rows=[];
+  const lines=text.split('\n');
+  for(const line of lines){
+    if(!line.trim()) continue;
+    const cols=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'&&!inQ){inQ=true;}
+      else if(ch==='"'&&inQ){inQ=false;}
+      else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=ch;
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+function parseDate(s){
+  if(!s||!s.trim()) return null;
+  s=s.trim();
+  const MO={jan:0,feb:1,mar:2,apr:3,may:4,mei:4,jun:5,jul:6,aug:7,agu:7,sep:8,oct:9,okt:9,nov:10,dec:11,des:11};
+  const m1=s.match(/^(\d{1,2})[-\/]([A-Za-z]{3,})[-\/](\d{2,4})$/);
+  if(m1){const mo=MO[m1[2].toLowerCase().substring(0,3)];if(mo!==undefined){const y=parseInt(m1[3]);return new Date(y<100?2000+y:y,mo,parseInt(m1[1]));}}
+  const m2=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m2){const y=parseInt(m2[3]);return new Date(y<100?2000+y:y,parseInt(m2[2])-1,parseInt(m2[1]));}
+  const d=new Date(s);
+  return isNaN(d.getTime())?null:d;
+}
+
+function parseNum(s){
+  if(!s||!s.trim()) return 0;
+  const n=parseFloat(s.replace(/[Rp\s\.]/g,'').replace(',','.'));
+  return isNaN(n)?0:Math.abs(n);
+}
+
+function getStr(v){return v?String(v).trim():'';}
+
+function getKat(desc,type){
+  if(type==='out'){
+    const d=desc.toLowerCase();
+    if(d.includes('konsumsi dko')||d.includes('kosumsi dko')||d.includes('makan dko')||d.includes('dko subdit')) return 'Konsumsi DKO';
+    if(d.includes('snack sore')||(d.includes('makan subdit')&&d.includes('snack'))) return 'Snack Bersama';
+    if(d.includes('kado')||d.includes('perpisahan')||d.includes('promosi')||d.includes('mutasi')||d.includes('snack rapat')||d.includes('sharing')) return 'Kado/Apresiasi';
+    if(d.includes('duka')) return 'Uang Duka';
+    if(d.includes('lahiran')) return 'Uang Lahiran';
+    return 'Pengeluaran Lain';
+  }
+  return 'Iuran';
+}
+
+function parseTxCSV(rows){
+  const txs=[];
+  let saldoAwal=0;
+  // Find header row
+  let headerIdx=-1;
+  let colMap={tgl:0,kat:-1,desc:1,masuk:2,keluar:3,saldo:4};
+  for(let i=0;i<Math.min(10,rows.length);i++){
+    const r=rows[i].map(c=>String(c||'').toLowerCase());
+    if(r.some(c=>c.includes('tanggal')||c.includes('uraian'))){
+      headerIdx=i;
+      r.forEach((c,idx)=>{
+        if(c.includes('tanggal')) colMap.tgl=idx;
+        else if(c.includes('kategori')||c==='kat') colMap.kat=idx;
+        else if(c.includes('uraian')||c.includes('keterangan')) colMap.desc=idx;
+        else if(c.includes('masuk')) colMap.masuk=idx;
+        else if(c.includes('keluar')) colMap.keluar=idx;
+        else if(c.includes('saldo')) colMap.saldo=idx;
+      });
+      break;
+    }
+  }
+  const startIdx=headerIdx>=0?headerIdx+1:0;
+  for(let i=startIdx;i<rows.length;i++){
+    const c=rows[i];
+    if(!c||c.length<3) continue;
+    const tglRaw=c[colMap.tgl];
+    const tglStr=String(tglRaw||'').trim();
+    const desc=String(c[colMap.desc]||'').trim();
+    // Saldo awal row
+    if(tglStr.toLowerCase().includes('saldo')||desc.toLowerCase().includes('saldo kas')){
+      const s=parseNum(String(c[colMap.masuk]||''))||parseNum(String(c[colMap.saldo]||''));
+      if(s>0) saldoAwal=s;
+      continue;
+    }
+    if(!desc) continue;
+    // Parse date — Apps Script returns Date objects or date strings
+    let date=null;
+    if(tglRaw instanceof Date) date=tglRaw;
+    else date=parseDate(tglStr);
+    if(!date||isNaN(date.getTime())) continue;
+    const masuk=parseNum(String(c[colMap.masuk]||''));
+    const keluar=parseNum(String(c[colMap.keluar]||''));
+    const saldo=parseNum(String(c[colMap.saldo]||''));
+    if(masuk===0&&keluar===0) continue;
+    const type=masuk>0?'in':'out';
+    let kat=colMap.kat>=0?String(c[colMap.kat]||'').trim():'';
+    if(!kat) kat=getKat(desc,type);
+    kat=kat.replace(/kosumsi/gi,'Konsumsi').replace(/kado perpisahan/gi,'Kado/Apresiasi');
+    txs.push({date,desc,masuk,keluar,saldo,type,kat,yr:date.getFullYear()});
+  }
+  return {txs,saldoAwal};
+}
+
+// Global state
+let ALLTX=[], SALDO_AWAL_2025=1978291;
+let ST={tab:0,fil:{q:'',tipe:'all',yr:'all'},jFil:'all',repM:13,bulanFil:12};
+
+const MBR=[
+  {n:'Ibu Fitri Ajuning W.',j:'P',iu:200000,lp:12},{n:'Ibu Elva Nelly',j:'P',iu:100000,lp:4},
+  {n:'Bpk Muchsinin Husein',j:'P',iu:100000,lp:5},{n:'Bpk Agus Rinaldo S.',j:'P',iu:100000,lp:3},
+  {n:'Bpk Hendra Gunawan',j:'P',iu:100000,lp:6},{n:'Bpk Bambang Sutarjo',j:'P',iu:100000,lp:5},
+  {n:'Dini Ratnasari',j:'L',iu:25000,lp:4},{n:'Sarah',j:'L',iu:25000,lp:4},
+  {n:'Reygama',j:'L',iu:25000,lp:12},{n:'Dian Adi',j:'L',iu:25000,lp:4},
+  {n:'Afief',j:'L',iu:25000,lp:3},{n:'Alif',j:'L',iu:25000,lp:6},
+  {n:'Zhafira',j:'L',iu:25000,lp:4},{n:'Ageng',j:'L',iu:25000,lp:3},
+  {n:'Oka',j:'L',iu:25000,lp:3},{n:'Findy',j:'L',iu:25000,lp:6},
+  {n:'Valdo',j:'L',iu:25000,lp:10},{n:'Cahya',j:'L',iu:25000,lp:0},
+  {n:'Oci',j:'L',iu:25000,lp:12},{n:'Zulfa',j:'L',iu:25000,lp:6},
+  {n:'Rasyid',j:'L',iu:25000,lp:4},{n:'Ilman',j:'L',iu:25000,lp:6},
+  {n:'Wiwit',j:'L',iu:25000,lp:4},{n:'Fitriana',j:'L',iu:25000,lp:5},
+  {n:'Diana',j:'L',iu:25000,lp:8},{n:'Ella',j:'L',iu:25000,lp:4},
+  {n:'Fajrian',j:'L',iu:25000,lp:4},{n:'Gilang Hananta',j:'L',iu:25000,lp:1},
+  {n:'Gilang Hulk',j:'L',iu:25000,lp:1},{n:'Joshua',j:'L',iu:25000,lp:12},
+  {n:'Agasi',j:'L',iu:25000,lp:0},{n:'Faishal',j:'L',iu:25000,lp:0},
+  {n:'Reddy',j:'L',iu:25000,lp:0},
+];
+const DUE=5;
+const MNMS=['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const RAB_DATA=[
+  {n:'Konsumsi DKO Bulanan',nom:'Rp 25.000/orang',kat:'Konsumsi DKO',note:'~30–35 org/bln'},
+  {n:'Snack Bersama / Snack Sore',nom:'Rp 100.000/minggu',kat:'Snack Bersama',note:'1× realisasi (Sep 2025)'},
+  {n:'Kado/Cenderamata & Apresiasi',nom:'Rp 500rb–1jt/orang',kat:'Kado/Apresiasi',note:'Pindah, pensiun, promosi'},
+  {n:'Uang Kedukaan Pegawai',nom:'Rp 500.000/orang',kat:'Uang Duka',note:'1× realisasi (Ilman)'},
+  {n:'Uang Lahiran Pegawai',nom:'Rp 500.000/orang',kat:'Uang Lahiran',note:'Belum ada realisasi'},
+];
+const RPT_MONTHS=[
+  {y:2025,m:4,l:'April 2025'},{y:2025,m:5,l:'Mei 2025'},{y:2025,m:6,l:'Juni 2025'},
+  {y:2025,m:7,l:'Juli 2025'},{y:2025,m:8,l:'Agustus 2025'},{y:2025,m:9,l:'September 2025'},
+  {y:2025,m:10,l:'Oktober 2025'},{y:2025,m:11,l:'November 2025'},{y:2025,m:12,l:'Desember 2025'},
+  {y:2026,m:1,l:'Januari 2026'},{y:2026,m:2,l:'Februari 2026'},{y:2026,m:3,l:'Maret 2026'},{y:2026,m:4,l:'April 2026'},{y:2026,m:5,l:'Mei 2026'}
+];
+
+async function loadData(){
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('saldo-top').textContent='—';
+
+  // Use JSONP to bypass CORS redirect issue from Google Apps Script
+  const callbackName='_kasData_'+Date.now();
+  const script=document.createElement('script');
+
+  const timeout=setTimeout(()=>{
+    cleanup();
+    showError('Koneksi timeout. Periksa koneksi internet Anda.');
+  },15000);
+
+  function cleanup(){
+    clearTimeout(timeout);
+    delete window[callbackName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+  }
+
+  window[callbackName]=function(data){
+    cleanup();
+    try{
+      if(!data||!data.t25||!data.t26) throw new Error('Format data tidak dikenal');
+      const r25=parseTxCSV(data.t25), r26=parseTxCSV(data.t26);
+      SALDO_AWAL_2025=r25.saldoAwal||1978291;
+      ALLTX=[...r25.txs,...r26.txs];
+      const now=new Date();
+      document.getElementById('last-update').textContent=
+        `Data dari Google Sheets · Dimuat: ${fmtDate(now)} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      document.getElementById('loading').style.display='none';
+      document.getElementById('app').style.display='block';
+      render();
+    }catch(e){showError(e.message);}
+  };
+
+  script.onerror=function(){
+    cleanup();
+    showError('Gagal memuat script. Periksa koneksi internet.');
+  };
+
+  script.src=APPS_SCRIPT_URL+'?callback='+callbackName+'&t='+Date.now();
+  document.head.appendChild(script);
+}
+
+function showError(msg){
+  document.getElementById('loading').innerHTML=`
+    <div class="error-box" style="max-width:560px;margin:0 auto">
+      <h3>⚠ Gagal memuat data</h3>
+      <p style="margin-top:6px;font-family:monospace;font-size:12px;background:#fff3f3;padding:8px;border-radius:4px">${msg}</p>
+      <p style="margin-top:10px">Coba langkah berikut:</p>
+      <ol>
+        <li>Pastikan koneksi internet aktif</li>
+        <li>Klik tombol Coba Lagi di bawah</li>
+        <li>Jika masih error, hubungi Dini Ratnasari untuk cek Apps Script</li>
+      </ol>
+      <button onclick="loadData()" style="margin-top:14px;padding:8px 16px;background:#1a3a5c;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">↻ Coba Lagi</button>
+    </div>`;
+}
+
+function txRow(t){
+  return `<div class="txi">
+    <div class="ic ${t.type}">${t.type==='in'?'↑':'↓'}</div>
+    <div class="txinf">
+      <div class="txd">${t.desc}</div>
+      <div class="txm"><span class="tag tg${t.type==='in'?'i':'o'}">${t.kat}</span>&nbsp;<span class="tag tgd">${t.yr}</span>&nbsp;${fmtDate(t.date)}</div>
+    </div>
+    <div>
+      <div class="txa ${t.type}">${t.type==='in'?'+':'-'}${fmt(t.type==='in'?t.masuk:t.keluar)}</div>
+      ${t.saldo?`<div class="txb">Saldo: ${fmtS(t.saldo)}</div>`:''}
+    </div>
+  </div>`;
+}
+
+function barChart(atx){
+  const months=[
+    {l:'Apr 25',y:2025,m:4},{l:'Mei 25',y:2025,m:5},{l:'Jun 25',y:2025,m:6},
+    {l:'Jul 25',y:2025,m:7},{l:'Agu 25',y:2025,m:8},{l:'Sep 25',y:2025,m:9},
+    {l:'Okt 25',y:2025,m:10},{l:'Nov 25',y:2025,m:11},{l:'Des 25',y:2025,m:12},
+    {l:'Jan 26',y:2026,m:1},{l:'Feb 26',y:2026,m:2},{l:'Mar 26',y:2026,m:3},{l:'Apr 26',y:2026,m:4},{l:'Mei 26',y:2026,m:5},
+  ];
+  months.forEach(mo=>{
+    const txm=atx.filter(t=>t.date&&t.date.getFullYear()===mo.y&&t.date.getMonth()+1===mo.m);
+    mo.masuk=txm.reduce((a,t)=>a+t.masuk,0);
+    mo.keluar=txm.reduce((a,t)=>a+t.keluar,0);
+  });
+  const W=800,H=180,PL=62,PR=12,PT=18,PB=32;
+  const pw=W-PL-PR,ph=H-PT-PB,n=months.length;
+  const maxV=Math.max(...months.flatMap(d=>[d.masuk,d.keluar]),1);
+  const gw=pw/n,bw=Math.max(8,Math.floor(gw*0.33)),gap=Math.floor(gw*0.06);
+  const yVals=[0,maxV*0.5,maxV];
+  const grid=yVals.map(v=>{const y=(PT+ph-(v/maxV)*ph).toFixed(1);return`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4,3"/><text x="${PL-5}" y="${(parseFloat(y)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#999">${fmtS(v)}</text>`;}).join('');
+  const bars=months.map((d,i)=>{
+    const cx=PL+(i+0.5)*gw,x1=(cx-bw-gap/2).toFixed(1),x2=(cx+gap/2).toFixed(1);
+    const hm=d.masuk>0?Math.max(4,Math.round((d.masuk/maxV)*ph)):0;
+    const hk=d.keluar>0?Math.max(4,Math.round((d.keluar/maxV)*ph)):0;
+    const ym=(PT+ph-hm).toFixed(1),yk=(PT+ph-hk).toFixed(1);
+    const col=d.y===2025?'#888':'#e65100';
+    return`${hm>0?`<rect x="${x1}" y="${ym}" width="${bw}" height="${hm}" fill="#2e7d32" opacity=".75" rx="2"/>`:''}`
+      +`${hk>0?`<rect x="${x2}" y="${yk}" width="${bw}" height="${hk}" fill="#c62828" opacity=".75" rx="2"/>`:''}`
+      +`<text x="${cx.toFixed(1)}" y="${H-PB+14}" text-anchor="middle" font-size="9.5" fill="${col}" font-weight="${d.y===2026?'700':'400'}">${d.l}</text>`;
+  }).join('');
+  const divx=(PL+9*gw).toFixed(1);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${grid}
+    <line x1="${divx}" y1="${PT}" x2="${divx}" y2="${H-PB}" stroke="#bbb" stroke-width="1" stroke-dasharray="5,3"/>
+    <text x="${(PL+4.5*gw).toFixed(1)}" y="${PT-4}" text-anchor="middle" font-size="9" fill="#999">2025</text>
+    <text x="${(PL+11*gw).toFixed(1)}" y="${PT-4}" text-anchor="middle" font-size="9" fill="#e65100" font-weight="700">2026</text>
+    ${bars}
+    <rect x="${W-PR-145}" y="${PT}" width="10" height="10" fill="#2e7d32" opacity=".75" rx="2"/>
+    <text x="${W-PR-132}" y="${PT+8}" font-size="10" fill="#555">Pemasukan</text>
+    <rect x="${W-PR-68}" y="${PT}" width="10" height="10" fill="#c62828" opacity=".75" rx="2"/>
+    <text x="${W-PR-55}" y="${PT+8}" font-size="10" fill="#555">Pengeluaran</text>
+    <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${H-PB}" stroke="#bbb" stroke-width="1"/>
+    <line x1="${PL}" y1="${H-PB}" x2="${W-PR}" y2="${H-PB}" stroke="#bbb" stroke-width="1"/>
+  </svg>`;
+}
+
+function render(){
+  const {tab,fil,jFil,repM} = ST;
+  const atx = ALLTX;
+  const sl = atx.length>0 ? atx[atx.length-1].saldo : 0;
+  const totM = atx.reduce((a,t)=>a+t.masuk,0);
+  const totK = atx.reduce((a,t)=>a+t.keluar,0);
+  const tng = MBR.filter(m=>m.lp<DUE);
+
+  document.getElementById('saldo-top').textContent = 'Saldo: '+fmt(sl);
+  const tabNames=['Dasbor','Transaksi','Monitoring','Tunggakan','RAB','Laporan Cetak'];
+  document.getElementById('tab-bar').innerHTML = tabNames.map((n,i)=>
+    `<button class="tab ${tab===i?'a':''}" onclick="ST.tab=${i};render()">${n}${i===3&&tng.length>0?` <span class="tag tgo" style="font-size:10px;padding:1px 6px;margin-left:3px">${tng.length}</span>`:''}</button>`
+  ).join('');
+
+  const infoBar = `<div class="info-bar">ℹ Data diambil langsung dari Google Sheets. Edit transaksi di Sheets → klik <strong>↻ Refresh</strong> untuk melihat perubahan.</div>`;
+  let cont = '';
+
+  if(tab===0){
+    const katD={};atx.filter(t=>t.type==='out').forEach(t=>{katD[t.kat]=(katD[t.kat]||0)+t.keluar;});
+    const katArr=Object.entries(katD).sort((a,b)=>b[1]-a[1]);
+    const rec=[...atx].reverse().slice(0,8);
+    cont=`${infoBar}<div class="smg">
+      <div class="sm"><div class="sl">Saldo terkini</div><div class="sv g">${fmt(sl)}</div><div class="ss">${atx.length} transaksi</div></div>
+      <div class="sm"><div class="sl">Total pemasukan</div><div class="sv g">${fmt(totM)}</div><div class="ss">Apr 2025 – Mei 2026</div></div>
+      <div class="sm"><div class="sl">Total pengeluaran</div><div class="sv r">${fmt(totK)}</div><div class="ss">${Math.round(totK/totM*100)}% dari pemasukan</div></div>
+    </div>
+    <div class="card"><div class="ct">Perbandingan pemasukan vs pengeluaran per bulan</div>${barChart(atx)}</div>
+    <div class="g2">
+      <div class="card"><div class="ct">Pengeluaran per kategori</div>
+        ${katArr.map(([k,v])=>{const p=Math.round(v/totK*100);return`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid var(--border)"><div style="flex:1;font-weight:600">${k}</div><div style="width:80px"><div class="pb"><div class="pfr" style="width:${p}%"></div></div></div><div style="width:65px;text-align:right;color:var(--red)">${fmtS(v)}</div><div style="width:32px;text-align:right;color:var(--text3);font-size:11px">${p}%</div></div>`;}).join('')}
+      </div>
+      <div class="card"><div class="ct">Transaksi terbaru</div><div class="txl">${rec.map(txRow).join('')}</div></div>
+    </div>`;
+  }
+
+  if(tab===1){
+    let filt=[...atx].filter(t=>{
+      if(fil.tipe!=='all'&&t.type!==fil.tipe) return false;
+      if(fil.yr!=='all'&&String(t.yr)!==fil.yr) return false;
+      if(fil.q&&!t.desc.toLowerCase().includes(fil.q.toLowerCase())&&!t.kat.toLowerCase().includes(fil.q.toLowerCase())) return false;
+      return true;
+    }).reverse();
+    cont=`${infoBar}<div class="card"><div class="ct">Riwayat transaksi (${filt.length})</div>
+      <div class="fb"><input type="text" placeholder="Cari keterangan..." value="${fil.q}" oninput="ST.fil.q=this.value;render()" style="flex:1;min-width:160px"/>
+        <select onchange="ST.fil.tipe=this.value;render()" style="width:110px"><option value="all" ${fil.tipe==='all'?'selected':''}>Semua</option><option value="in" ${fil.tipe==='in'?'selected':''}>Masuk</option><option value="out" ${fil.tipe==='out'?'selected':''}>Keluar</option></select>
+        <select onchange="ST.fil.yr=this.value;render()" style="width:100px"><option value="all">Semua tahun</option><option value="2025" ${fil.yr==='2025'?'selected':''}>2025</option><option value="2026" ${fil.yr==='2026'?'selected':''}>2026</option></select>
+      </div>
+      <div class="txl">${filt.length?filt.map(txRow).join(''):'<div class="empty">Tidak ada transaksi ditemukan</div>'}</div>
+    </div>`;
+  }
+
+  if(tab===2){
+    const months=[
+      {b:'April',y:2025,m:4},{b:'Mei',y:2025,m:5},{b:'Juni',y:2025,m:6},{b:'Juli',y:2025,m:7},
+      {b:'Agustus',y:2025,m:8},{b:'September',y:2025,m:9},{b:'Oktober',y:2025,m:10},
+      {b:'November',y:2025,m:11},{b:'Desember',y:2025,m:12},
+      {b:'Januari',y:2026,m:1},{b:'Februari',y:2026,m:2},{b:'Maret',y:2026,m:3},{b:'April',y:2026,m:4},{b:'Mei',y:2026,m:5},
+    ];
+    months.forEach(mo=>{
+      const txm=atx.filter(t=>t.date&&t.date.getFullYear()===mo.y&&t.date.getMonth()+1===mo.m);
+      mo.masuk=txm.reduce((a,t)=>a+t.masuk,0);
+      mo.keluar=txm.reduce((a,t)=>a+t.keluar,0);
+    });
+    let s=SALDO_AWAL_2025;
+    const rows=months.map(mo=>{
+      s+=mo.masuk-mo.keluar;
+      const mx=Math.max(mo.masuk,mo.keluar,1);
+      return`<div class="mrow">
+        <div style="font-weight:600">${mo.b}</div>
+        <div><div style="color:var(--green);font-weight:700">${fmtS(mo.masuk)}</div><div class="pb"><div class="pfg" style="width:${Math.round(mo.masuk/mx*100)}%"></div></div></div>
+        <div><div style="color:var(--red);font-weight:700">${fmtS(mo.keluar)}</div><div class="pb"><div class="pfr" style="width:${Math.round(mo.keluar/mx*100)}%"></div></div></div>
+        <div style="font-weight:700;color:${mo.masuk>=mo.keluar?'var(--green)':'var(--red)'}">${fmtS(s)}</div>
+      </div>`;
+    });
+    cont=`<div class="card"><div class="ct">Monitoring kas bulanan</div>
+      <div class="mrow th"><div>Bulan</div><div>Pemasukan</div><div>Pengeluaran</div><div>Saldo</div></div>
+      <span class="yl y25">Tahun 2025</span>${rows.slice(0,9).join('')}
+      <div style="margin-top:8px"><span class="yl y26">Tahun 2026</span></div>${rows.slice(9).join('')}
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="color:var(--text2)">Saldo terkini</span><span style="color:var(--green)">${fmt(sl)}</span></div>
+    </div>`;
+  }
+
+  if(tab===3){
+    const {bulanFil}=ST;
+    // All months from Apr 2025 to Apr 2026 (index 4..12 = 2025, 1..4 = 2026)
+    const BULAN_LIST=[
+      {idx:4,y:2025,m:4,l:'April 2025'},{idx:5,y:2025,m:5,l:'Mei 2025'},{idx:6,y:2025,m:6,l:'Juni 2025'},
+      {idx:7,y:2025,m:7,l:'Juli 2025'},{idx:8,y:2025,m:8,l:'Agustus 2025'},{idx:9,y:2025,m:9,l:'September 2025'},
+      {idx:10,y:2025,m:10,l:'Oktober 2025'},{idx:11,y:2025,m:11,l:'November 2025'},{idx:12,y:2025,m:12,l:'Desember 2025'},
+      {idx:1,y:2026,m:1,l:'Januari 2026'},{idx:2,y:2026,m:2,l:'Februari 2026'},{idx:3,y:2026,m:3,l:'Maret 2026'},{idx:4,y:2026,m:4,l:'April 2026'},{idx:5,y:2026,m:5,l:'Mei 2026'},
+    ];
+    const selBulan=BULAN_LIST[BULAN_LIST.length-1+ST.bulanFil-4]||BULAN_LIST[BULAN_LIST.length-1];
+
+    // Determine which members have paid up to selected month
+    // lp = last paid month index (1-12 for 2026, or 12 = fully paid 2025, etc.)
+    // For simplicity: bulanFil is the month number we're checking (1-12 for 2026, or special for 2025)
+    const bulanIdx=ST.bulanFil; // index in BULAN_LIST
+    const selBulanObj=BULAN_LIST[bulanIdx];
+
+    // Calculate who hasn't paid for selected month
+    // lp is months paid in 2026 (0 = none, 5 = paid Jan-Mei 2026)
+    // For 2025 months, lp=12 means paid all 2025
+    function hasBayarBulan(m, bulanObj){
+      if(!bulanObj) return true;
+      if(bulanObj.y===2025) return true; // 2025 data based on lp>=12
+      if(bulanObj.y===2026){
+        return m.lp >= bulanObj.m;
+      }
+      return false;
+    }
+
+    const fMbr=jFil==='all'?MBR:MBR.filter(m=>m.j===jFil);
+    const tngL=fMbr.filter(m=>m.lp<DUE), lunasL=fMbr.filter(m=>m.lp>=DUE);
+    const totTng=tngL.reduce((a,m)=>a+(DUE-m.lp)*m.iu,0);
+
+    // Per-month view
+    const belumBulan=fMbr.filter(m=>!hasBayarBulan(m,selBulanObj));
+    const sudahBulan=fMbr.filter(m=>hasBayarBulan(m,selBulanObj));
+
+    const viewMode=ST.viewMode||'anggota'; // 'anggota' or 'bulan'
+
+    const bulanRows=belumBulan.map(m=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} · ${fmt(m.iu)}/bln</div></div>
+        <span class="tag tgo">Belum bayar</span>
+      </div>`).join('');
+
+    cont=`${tngL.length>0?`<div class="nbox nr">⚠ ${tngL.length} anggota tunggakan s.d. Mei 2026 — estimasi ${fmt(totTng)}</div>`:''}
+    ${tngL.filter(m=>m.lp===0).length>0?`<div class="nbox nw">▸ ${tngL.filter(m=>m.lp===0).length} anggota belum bayar sama sekali di 2026</div>`:''}
+    ${lunasL.length>0?`<div class="nbox ng">✓ ${lunasL.length} anggota sudah lunas s.d. Mei 2026</div>`:''}
+
+    <div class="card"><div class="ct">Cek per bulan — siapa yang belum bayar?
+    </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:var(--text2)">Pilih bulan:</label>
+        <select style="width:180px;height:34px" onchange="ST.bulanFil=parseInt(this.value);render()">
+          ${BULAN_LIST.map((b,i)=>`<option value="${i}" ${bulanIdx===i?'selected':''}>${b.l}</option>`).join('')}
+        </select>
+        <span style="font-size:12px;color:var(--text2)">→ <strong style="color:var(--red)">${belumBulan.length} orang</strong> belum bayar · <strong style="color:var(--green)">${sudahBulan.length} orang</strong> sudah bayar</span>
+      </div>
+      ${belumBulan.length===0
+        ?`<div style="background:var(--green-bg);border-radius:var(--r);padding:16px;text-align:center;color:var(--green);font-weight:600">✓ Semua anggota sudah bayar di ${selBulanObj?selBulanObj.l:'bulan ini'}!</div>`
+        :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">❌ Belum bayar (${belumBulan.length})</div>
+            <div style="max-height:280px;overflow-y:auto">${bulanRows||'<div class="empty">Semua sudah bayar</div>'}</div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">✓ Sudah bayar (${sudahBulan.length})</div>
+            <div style="max-height:280px;overflow-y:auto">${sudahBulan.map(m=>`
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'}</div></div>
+                <span class="tag tgi">✓ Bayar</span>
+              </div>`).join('')}</div>
+          </div>
+        </div>`}
+    </div>
+
+    <div class="card"><div class="ct">Status iuran per anggota — s.d. Mei 2026
+      <div class="ct-r">
+        <button class="btn ${jFil==='all'?'act':''}" onclick="ST.jFil='all';render()">Semua</button>
+        <button class="btn ${jFil==='P'?'act':''}" onclick="ST.jFil='P';render()">Pejabat</button>
+        <button class="btn ${jFil==='L'?'act':''}" onclick="ST.jFil='L';render()">Pelaksana</button>
+      </div>
+    </div>
+    <div class="mbr-row" style="font-size:11px;color:var(--text2);font-weight:700;padding-bottom:7px;border-bottom:2px solid var(--border2)">
+      <div>Nama</div><div style="text-align:center">Status</div><div>Terbayar s.d.</div><div>Tunggakan</div><div>Bulan belum bayar</div>
+    </div>
+    <div style="max-height:360px;overflow-y:auto">${fMbr.map(m=>{
+      const tb=Math.max(0,DUE-m.lp), nom=tb*m.iu;
+      return`<div class="mbr-row">
+        <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} &middot; ${fmt(m.iu)}/bln</div></div>
+        <div style="text-align:center">${tb===0?'<span class="tag tgi">Lunas</span>':`<span class="tag tgo">-${tb} bln</span>`}</div>
+        <div style="color:var(--text2)">${m.lp>0?`s.d. ${MNMS[m.lp]} 2026`:'Belum ada 2026'}</div>
+        <div style="color:${tb>0?'var(--red)':'var(--text3)'};font-weight:${tb>0?700:400}">${tb>0?fmt(nom):'—'}</div>
+        <div style="color:var(--text3);font-size:11px">${tb>0?Array.from({length:tb},(_,i)=>MNMS[m.lp+i+1]).join(', '):'—'}</div>
+      </div>`;
+    }).join('')}</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <span style="color:var(--text2)">Total tunggakan</span><span style="color:var(--red)">${fmt(tngL.reduce((a,m)=>a+(DUE-m.lp)*m.iu,0))}</span>
+    </div></div>`;
+  }
+
+  if(tab===4){
+    const katSpend={};atx.filter(t=>t.type==='out').forEach(t=>{katSpend[t.kat]=(katSpend[t.kat]||0)+t.keluar;});
+    cont=`<div class="card"><div class="ct">Rencana Anggaran Biaya (RAB)</div>
+      <div class="rab-row" style="font-size:11px;color:var(--text2);font-weight:700;padding-bottom:7px;border-bottom:2px solid var(--border2)"><div>Uraian</div><div>Nominal RAB</div><div>Realisasi s.d. kini</div><div>% Total</div></div>
+      ${RAB_DATA.map(r=>{const v=katSpend[r.kat]||0;const p=totK>0?Math.round(v/totK*100):0;return`<div class="rab-row">
+        <div><div style="font-weight:600">${r.n}</div><div style="font-size:11px;color:var(--text3);margin-top:2px"><em>${r.note}</em></div></div>
+        <div style="color:var(--text2)">${r.nom}</div>
+        <div><div style="color:var(--red);font-weight:700">${fmtS(v)}</div><div class="pb"><div class="pfr" style="width:${p}%"></div></div></div>
+        <div style="text-align:right"><span class="tag tgd">${p}%</span></div>
+      </div>`;}).join('')}
+    </div>
+    <div class="card"><div class="ct">Catatan</div>
+      <div class="note">• Pengeluaran lain diperbolehkan selama untuk <strong>kebersamaan Subdit KSIKC I</strong><br>
+      • Iuran pejabat <strong>Rp 100.000/bln</strong> (Kasubdit <strong>Rp 200.000/bln</strong>) &nbsp;·&nbsp; Pelaksana <strong>Rp 25.000/bln</strong><br>
+      • Setoran ke BCA <strong>0948547972</strong> a/n Dini Ratnasari, paling lambat <strong>tanggal 5</strong> setiap bulan</div>
+    </div>`;
+  }
+
+  if(tab===5){
+    const rm=RPT_MONTHS[repM];
+    const inM=atx.filter(t=>t.date&&t.date.getFullYear()===rm.y&&t.date.getMonth()+1===rm.m);
+    const mT=inM.filter(t=>t.type==='in'), kT=inM.filter(t=>t.type==='out');
+    const totMasuk=mT.reduce((a,t)=>a+t.masuk,0), totKeluar=kT.reduce((a,t)=>a+t.keluar,0);
+    const prevTx=atx.filter(t=>t.date&&(t.date.getFullYear()<rm.y||(t.date.getFullYear()===rm.y&&t.date.getMonth()+1<rm.m)));
+    const sA=prevTx.length?prevTx[prevTx.length-1].saldo:SALDO_AWAL_2025;
+    cont=`<div class="card"><div class="ct">Laporan Bulanan Siap Cetak
+      <button class="btn" onclick="printReport()" style="background:#c62828;color:#fff;border-color:#c62828">🖨 Cetak / PDF</button></div>
+      <div style="margin-bottom:12px"><label style="font-size:11px;color:var(--text2);font-weight:600;margin-right:8px">Pilih bulan:</label>
+        <select style="width:200px" onchange="ST.repM=parseInt(this.value);render()">
+          ${RPT_MONTHS.map((m,i)=>`<option value="${i}" ${repM===i?'selected':''}>${m.l}</option>`).join('')}
+        </select>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+        <div style="background:var(--bg2);padding:12px 18px;text-align:center;border-bottom:1px solid var(--border)">
+          <div style="font-size:15px;font-weight:700">LAPORAN KAS BULANAN</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px">Subdirektorat KSIKC I · Direktorat KSIKC · Periode ${rm.l}</div>
+        </div>
+        <div style="padding:14px 18px">
+          <div class="smg" style="margin-bottom:14px">
+            ${[['Saldo Awal',sA,'g'],['Total Masuk',totMasuk,'g'],['Total Keluar',totKeluar,'r'],['Saldo Akhir',sA+totMasuk-totKeluar,'g']].map(([l,v,c])=>`<div class="sm"><div class="sl">${l}</div><div class="sv ${c}">${fmtS(v)}</div></div>`).join('')}
+          </div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--green)">Pemasukan (${mT.length})</div>
+          <div class="txl" style="max-height:180px">${mT.length?mT.map(txRow).join(''):'<div class="empty" style="padding:1rem">Tidak ada pemasukan bulan ini</div>'}</div>
+          <div style="font-size:12px;font-weight:700;margin:10px 0 8px;color:var(--red)">Pengeluaran (${kT.length})</div>
+          <div class="txl" style="max-height:140px">${kT.length?kT.map(txRow).join(''):'<div class="empty" style="padding:1rem">Tidak ada pengeluaran bulan ini</div>'}</div>
+        </div>
+      </div></div>`;
+  }
+
+  document.getElementById('root').innerHTML = cont;
+}
+
+function printReport(){
+  const rm=RPT_MONTHS[ST.repM];
+  const inM=ALLTX.filter(t=>t.date&&t.date.getFullYear()===rm.y&&t.date.getMonth()+1===rm.m);
+  const mT=inM.filter(t=>t.type==='in'), kT=inM.filter(t=>t.type==='out');
+  const totM=mT.reduce((a,t)=>a+t.masuk,0), totK=kT.reduce((a,t)=>a+t.keluar,0);
+  const prev=ALLTX.filter(t=>t.date&&(t.date.getFullYear()<rm.y||(t.date.getFullYear()===rm.y&&t.date.getMonth()+1<rm.m)));
+  const sA=prev.length?prev[prev.length-1].saldo:SALDO_AWAL_2025;
+  document.getElementById('pa').innerHTML=`
+    <div class="ph"><h2>LAPORAN KAS BULANAN</h2><h3>Subdirektorat KSIKC I — Direktorat KSIKC</h3>
+    <p>Periode: ${rm.l} &nbsp;·&nbsp; Dicetak: ${fmtDate(new Date())}</p></div>
+    <div class="psum">
+      <div class="psum-row"><span>Saldo Kas Awal Bulan</span><span>${fmt(sA)}</span></div>
+      <div class="psum-row"><span>Total Pemasukan</span><span>${fmt(totM)}</span></div>
+      <div class="psum-row"><span>Total Pengeluaran</span><span>(${fmt(totK)})</span></div>
+      <div class="psum-row bold"><span>Saldo Kas Akhir Bulan</span><span>${fmt(sA+totM-totK)}</span></div>
+    </div>
+    <div class="psub">Rincian Pemasukan</div>
+    <table><tr><th>Tanggal</th><th>Keterangan</th><th style="text-align:right">Jumlah</th></tr>
+    ${mT.map(t=>`<tr><td>${fmtDate(t.date)}</td><td>${t.desc}</td><td class="r">${fmt(t.masuk)}</td></tr>`).join('')}
+    <tr><td colspan="2"><strong>Total</strong></td><td class="r"><strong>${fmt(totM)}</strong></td></tr></table>
+    <div class="psub">Rincian Pengeluaran</div>
+    <table><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th style="text-align:right">Jumlah</th></tr>
+    ${kT.map(t=>`<tr><td>${fmtDate(t.date)}</td><td>${t.desc}</td><td>${t.kat}</td><td class="r">${fmt(t.keluar)}</td></tr>`).join('')}
+    <tr><td colspan="3"><strong>Total</strong></td><td class="r"><strong>${fmt(totK)}</strong></td></tr></table>
+    <div class="psig">
+      <div>Mengetahui,<br><br><br><br><br>Kepala Subdirektorat KSIKC I</div>
+      <div>Bendahara Kas,<br><br><br><br><br>Dini Ratnasari</div>
+    </div>`;
+  window.print();
+}
+
+loadData();
+</script>
+</body>
+</html>
