@@ -279,7 +279,7 @@ let ST={tab:0,fil:{q:'',tipe:'all',yr:'all'},jFil:'all',repM:13,bulanFil:12};
 const MBR=[
   {n:'Ibu Fitri Ajuning W.',j:'P',iu:200000,lp:12},{n:'Ibu Elva Nelly',j:'P',iu:100000,lp:4},
   {n:'Bpk Muchsinin Husein',j:'P',iu:100000,lp:5},{n:'Bpk Agus Rinaldo S.',j:'P',iu:100000,lp:3},
-  {n:'Bpk Hendra Gunawan',j:'P',iu:100000,lp:6},{n:'Bpk Bambang Sutarjo',j:'P',iu:100000,lp:5},
+  {n:'Pak Munir',j:'P',iu:100000,lp:0,join:3},{n:'Firtananto',j:'P',iu:100000,lp:0,join:3},
   {n:'Dini Ratnasari',j:'L',iu:25000,lp:4},{n:'Sarah',j:'L',iu:25000,lp:4},
   {n:'Reygama',j:'L',iu:25000,lp:12},{n:'Dian Adi',j:'L',iu:25000,lp:4},
   {n:'Afief',j:'L',iu:25000,lp:3},{n:'Alif',j:'L',iu:25000,lp:6},
@@ -535,14 +535,18 @@ function render(){
       if(!bulanObj) return true;
       if(bulanObj.y===2025) return true; // 2025 data based on lp>=12
       if(bulanObj.y===2026){
+        // If member joined after this month, they don't owe it
+        if((m.join||1) > bulanObj.m) return true;
         return m.lp >= bulanObj.m;
       }
       return false;
     }
 
     const fMbr=jFil==='all'?MBR:MBR.filter(m=>m.j===jFil);
-    const tngL=fMbr.filter(m=>m.lp<DUE), lunasL=fMbr.filter(m=>m.lp>=DUE);
-    const totTng=tngL.reduce((a,m)=>a+(DUE-m.lp)*m.iu,0);
+    // tb = months owed, respecting join month
+    const getTb=m=>Math.max(0, DUE - Math.max(m.lp, (m.join||1)-1));
+    const tngL=fMbr.filter(m=>getTb(m)>0), lunasL=fMbr.filter(m=>getTb(m)===0);
+    const totTng=tngL.reduce((a,m)=>a+getTb(m)*m.iu,0);
 
     // Per-month view
     const belumBulan=fMbr.filter(m=>!hasBayarBulan(m,selBulanObj));
@@ -598,17 +602,17 @@ function render(){
       <div>Nama</div><div style="text-align:center">Status</div><div>Terbayar s.d.</div><div>Tunggakan</div><div>Bulan belum bayar</div>
     </div>
     <div style="max-height:360px;overflow-y:auto">${fMbr.map(m=>{
-      const tb=Math.max(0,DUE-m.lp), nom=tb*m.iu;
+      const tb=getTb(m), nom=tb*m.iu;
       return`<div class="mbr-row">
         <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} &middot; ${fmt(m.iu)}/bln</div></div>
         <div style="text-align:center">${tb===0?'<span class="tag tgi">Lunas</span>':`<span class="tag tgo">-${tb} bln</span>`}</div>
         <div style="color:var(--text2)">${m.lp>0?`s.d. ${MNMS[m.lp]} 2026`:'Belum ada 2026'}</div>
         <div style="color:${tb>0?'var(--red)':'var(--text3)'};font-weight:${tb>0?700:400}">${tb>0?fmt(nom):'—'}</div>
-        <div style="color:var(--text3);font-size:11px">${tb>0?Array.from({length:tb},(_,i)=>MNMS[m.lp+i+1]).join(', '):'—'}</div>
+        <div style="color:var(--color-text-tertiary);font-size:11px">${tb>0?Array.from({length:tb},(_,i)=>MNMS[Math.max(m.lp, (m.join||1)-1)+i+1]).join(', '):'—'}</div>
       </div>`;
     }).join('')}</div>
     <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-      <span style="color:var(--text2)">Total tunggakan</span><span style="color:var(--red)">${fmt(tngL.reduce((a,m)=>a+(DUE-m.lp)*m.iu,0))}</span>
+      <span style="color:var(--text2)">Total tunggakan</span><span style="color:var(--red)">${fmt(tngL.reduce((a,m)=>a+getTb(m)*m.iu,0))}</span>
     </div></div>`;
   }
 
