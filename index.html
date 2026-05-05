@@ -274,7 +274,7 @@ function parseTxCSV(rows){
 
 // Global state
 let ALLTX=[], SALDO_AWAL_2025=1978291;
-let ST={tab:0,fil:{q:'',tipe:'all',yr:'all'},jFil:'all',repM:12};
+let ST={tab:0,fil:{q:'',tipe:'all',yr:'all'},jFil:'all',repM:13,bulanFil:12};
 
 const MBR=[
   {n:'Ibu Fitri Ajuning W.',j:'P',iu:200000,lp:12},{n:'Ibu Elva Nelly',j:'P',iu:100000,lp:4},
@@ -295,7 +295,7 @@ const MBR=[
   {n:'Agasi',j:'L',iu:25000,lp:0},{n:'Faishal',j:'L',iu:25000,lp:0},
   {n:'Reddy',j:'L',iu:25000,lp:0},
 ];
-const DUE=4;
+const DUE=5;
 const MNMS=['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const RAB_DATA=[
   {n:'Konsumsi DKO Bulanan',nom:'Rp 25.000/orang',kat:'Konsumsi DKO',note:'~30–35 org/bln'},
@@ -308,7 +308,7 @@ const RPT_MONTHS=[
   {y:2025,m:4,l:'April 2025'},{y:2025,m:5,l:'Mei 2025'},{y:2025,m:6,l:'Juni 2025'},
   {y:2025,m:7,l:'Juli 2025'},{y:2025,m:8,l:'Agustus 2025'},{y:2025,m:9,l:'September 2025'},
   {y:2025,m:10,l:'Oktober 2025'},{y:2025,m:11,l:'November 2025'},{y:2025,m:12,l:'Desember 2025'},
-  {y:2026,m:1,l:'Januari 2026'},{y:2026,m:2,l:'Februari 2026'},{y:2026,m:3,l:'Maret 2026'},{y:2026,m:4,l:'April 2026'}
+  {y:2026,m:1,l:'Januari 2026'},{y:2026,m:2,l:'Februari 2026'},{y:2026,m:3,l:'Maret 2026'},{y:2026,m:4,l:'April 2026'},{y:2026,m:5,l:'Mei 2026'}
 ];
 
 async function loadData(){
@@ -390,7 +390,7 @@ function barChart(atx){
     {l:'Apr 25',y:2025,m:4},{l:'Mei 25',y:2025,m:5},{l:'Jun 25',y:2025,m:6},
     {l:'Jul 25',y:2025,m:7},{l:'Agu 25',y:2025,m:8},{l:'Sep 25',y:2025,m:9},
     {l:'Okt 25',y:2025,m:10},{l:'Nov 25',y:2025,m:11},{l:'Des 25',y:2025,m:12},
-    {l:'Jan 26',y:2026,m:1},{l:'Feb 26',y:2026,m:2},{l:'Mar 26',y:2026,m:3},{l:'Apr 26',y:2026,m:4},
+    {l:'Jan 26',y:2026,m:1},{l:'Feb 26',y:2026,m:2},{l:'Mar 26',y:2026,m:3},{l:'Apr 26',y:2026,m:4},{l:'Mei 26',y:2026,m:5},
   ];
   months.forEach(mo=>{
     const txm=atx.filter(t=>t.date&&t.date.getFullYear()===mo.y&&t.date.getMonth()+1===mo.m);
@@ -451,7 +451,7 @@ function render(){
     const rec=[...atx].reverse().slice(0,8);
     cont=`${infoBar}<div class="smg">
       <div class="sm"><div class="sl">Saldo terkini</div><div class="sv g">${fmt(sl)}</div><div class="ss">${atx.length} transaksi</div></div>
-      <div class="sm"><div class="sl">Total pemasukan</div><div class="sv g">${fmt(totM)}</div><div class="ss">Apr 2025 – kini</div></div>
+      <div class="sm"><div class="sl">Total pemasukan</div><div class="sv g">${fmt(totM)}</div><div class="ss">Apr 2025 – Mei 2026</div></div>
       <div class="sm"><div class="sl">Total pengeluaran</div><div class="sv r">${fmt(totK)}</div><div class="ss">${Math.round(totK/totM*100)}% dari pemasukan</div></div>
     </div>
     <div class="card"><div class="ct">Perbandingan pemasukan vs pengeluaran per bulan</div>${barChart(atx)}</div>
@@ -484,7 +484,7 @@ function render(){
       {b:'April',y:2025,m:4},{b:'Mei',y:2025,m:5},{b:'Juni',y:2025,m:6},{b:'Juli',y:2025,m:7},
       {b:'Agustus',y:2025,m:8},{b:'September',y:2025,m:9},{b:'Oktober',y:2025,m:10},
       {b:'November',y:2025,m:11},{b:'Desember',y:2025,m:12},
-      {b:'Januari',y:2026,m:1},{b:'Februari',y:2026,m:2},{b:'Maret',y:2026,m:3},{b:'April',y:2026,m:4},
+      {b:'Januari',y:2026,m:1},{b:'Februari',y:2026,m:2},{b:'Maret',y:2026,m:3},{b:'April',y:2026,m:4},{b:'Mei',y:2026,m:5},
     ];
     months.forEach(mo=>{
       const txm=atx.filter(t=>t.date&&t.date.getFullYear()===mo.y&&t.date.getMonth()+1===mo.m);
@@ -512,13 +512,82 @@ function render(){
   }
 
   if(tab===3){
+    const {bulanFil}=ST;
+    // All months from Apr 2025 to Apr 2026 (index 4..12 = 2025, 1..4 = 2026)
+    const BULAN_LIST=[
+      {idx:4,y:2025,m:4,l:'April 2025'},{idx:5,y:2025,m:5,l:'Mei 2025'},{idx:6,y:2025,m:6,l:'Juni 2025'},
+      {idx:7,y:2025,m:7,l:'Juli 2025'},{idx:8,y:2025,m:8,l:'Agustus 2025'},{idx:9,y:2025,m:9,l:'September 2025'},
+      {idx:10,y:2025,m:10,l:'Oktober 2025'},{idx:11,y:2025,m:11,l:'November 2025'},{idx:12,y:2025,m:12,l:'Desember 2025'},
+      {idx:1,y:2026,m:1,l:'Januari 2026'},{idx:2,y:2026,m:2,l:'Februari 2026'},{idx:3,y:2026,m:3,l:'Maret 2026'},{idx:4,y:2026,m:4,l:'April 2026'},{idx:5,y:2026,m:5,l:'Mei 2026'},
+    ];
+    const selBulan=BULAN_LIST[BULAN_LIST.length-1+ST.bulanFil-4]||BULAN_LIST[BULAN_LIST.length-1];
+
+    // Determine which members have paid up to selected month
+    // lp = last paid month index (1-12 for 2026, or 12 = fully paid 2025, etc.)
+    // For simplicity: bulanFil is the month number we're checking (1-12 for 2026, or special for 2025)
+    const bulanIdx=ST.bulanFil; // index in BULAN_LIST
+    const selBulanObj=BULAN_LIST[bulanIdx];
+
+    // Calculate who hasn't paid for selected month
+    // lp is months paid in 2026 (0 = none, 5 = paid Jan-Mei 2026)
+    // For 2025 months, lp=12 means paid all 2025
+    function hasBayarBulan(m, bulanObj){
+      if(!bulanObj) return true;
+      if(bulanObj.y===2025) return true; // 2025 data based on lp>=12
+      if(bulanObj.y===2026){
+        return m.lp >= bulanObj.m;
+      }
+      return false;
+    }
+
     const fMbr=jFil==='all'?MBR:MBR.filter(m=>m.j===jFil);
     const tngL=fMbr.filter(m=>m.lp<DUE), lunasL=fMbr.filter(m=>m.lp>=DUE);
     const totTng=tngL.reduce((a,m)=>a+(DUE-m.lp)*m.iu,0);
-    cont=`${tngL.length>0?`<div class="nbox nr">⚠ ${tngL.length} anggota tunggakan s.d. April 2026 — estimasi ${fmt(totTng)}</div>`:''}
+
+    // Per-month view
+    const belumBulan=fMbr.filter(m=>!hasBayarBulan(m,selBulanObj));
+    const sudahBulan=fMbr.filter(m=>hasBayarBulan(m,selBulanObj));
+
+    const viewMode=ST.viewMode||'anggota'; // 'anggota' or 'bulan'
+
+    const bulanRows=belumBulan.map(m=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} · ${fmt(m.iu)}/bln</div></div>
+        <span class="tag tgo">Belum bayar</span>
+      </div>`).join('');
+
+    cont=`${tngL.length>0?`<div class="nbox nr">⚠ ${tngL.length} anggota tunggakan s.d. Mei 2026 — estimasi ${fmt(totTng)}</div>`:''}
     ${tngL.filter(m=>m.lp===0).length>0?`<div class="nbox nw">▸ ${tngL.filter(m=>m.lp===0).length} anggota belum bayar sama sekali di 2026</div>`:''}
-    ${lunasL.length>0?`<div class="nbox ng">✓ ${lunasL.length} anggota sudah lunas s.d. April 2026</div>`:''}
-    <div class="card"><div class="ct">Status iuran per anggota — per April 2026
+    ${lunasL.length>0?`<div class="nbox ng">✓ ${lunasL.length} anggota sudah lunas s.d. Mei 2026</div>`:''}
+
+    <div class="card"><div class="ct">Cek per bulan — siapa yang belum bayar?
+    </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:var(--text2)">Pilih bulan:</label>
+        <select style="width:180px;height:34px" onchange="ST.bulanFil=parseInt(this.value);render()">
+          ${BULAN_LIST.map((b,i)=>`<option value="${i}" ${bulanIdx===i?'selected':''}>${b.l}</option>`).join('')}
+        </select>
+        <span style="font-size:12px;color:var(--text2)">→ <strong style="color:var(--red)">${belumBulan.length} orang</strong> belum bayar · <strong style="color:var(--green)">${sudahBulan.length} orang</strong> sudah bayar</span>
+      </div>
+      ${belumBulan.length===0
+        ?`<div style="background:var(--green-bg);border-radius:var(--r);padding:16px;text-align:center;color:var(--green);font-weight:600">✓ Semua anggota sudah bayar di ${selBulanObj?selBulanObj.l:'bulan ini'}!</div>`
+        :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">❌ Belum bayar (${belumBulan.length})</div>
+            <div style="max-height:280px;overflow-y:auto">${bulanRows||'<div class="empty">Semua sudah bayar</div>'}</div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">✓ Sudah bayar (${sudahBulan.length})</div>
+            <div style="max-height:280px;overflow-y:auto">${sudahBulan.map(m=>`
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'}</div></div>
+                <span class="tag tgi">✓ Bayar</span>
+              </div>`).join('')}</div>
+          </div>
+        </div>`}
+    </div>
+
+    <div class="card"><div class="ct">Status iuran per anggota — s.d. Mei 2026
       <div class="ct-r">
         <button class="btn ${jFil==='all'?'act':''}" onclick="ST.jFil='all';render()">Semua</button>
         <button class="btn ${jFil==='P'?'act':''}" onclick="ST.jFil='P';render()">Pejabat</button>
@@ -528,7 +597,7 @@ function render(){
     <div class="mbr-row" style="font-size:11px;color:var(--text2);font-weight:700;padding-bottom:7px;border-bottom:2px solid var(--border2)">
       <div>Nama</div><div style="text-align:center">Status</div><div>Terbayar s.d.</div><div>Tunggakan</div><div>Bulan belum bayar</div>
     </div>
-    <div style="max-height:400px;overflow-y:auto">${fMbr.map(m=>{
+    <div style="max-height:360px;overflow-y:auto">${fMbr.map(m=>{
       const tb=Math.max(0,DUE-m.lp), nom=tb*m.iu;
       return`<div class="mbr-row">
         <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} &middot; ${fmt(m.iu)}/bln</div></div>
