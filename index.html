@@ -157,7 +157,7 @@ select:focus,input:focus{border-color:#1a3a5c;}
 <div id="pa"></div>
 
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwkTvyC1pq1fNBuC0QBeCYu5tyYI14uZ9w8xORvRAzmZCCQjYDKLlVN-oAa3-xEYH39/exec';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzHs5FGnFyuqiSSHRHoLjAeH42659KJDt06bqxSomIXXnm0lFgEMPqxJO_-PbZEKlFS/exec';
 
 const fmt=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 const fmtS=n=>n>=1e6?'Rp'+(n/1e6).toFixed(2)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(0)+'rb':fmt(n);
@@ -275,58 +275,69 @@ function parseTxCSV(rows){
 function parseMon(rows){
   const members=[];
   if(!rows||rows.length<3) return members;
-  const MMAP={'apr':4,'april':4,'may':5,'mei':5,'jun':6,'juni':6,'jul':7,'juli':7,
-    'aug':8,'agu':8,'agust':8,'agustus':8,'sep':9,'sept':9,'okt':10,'oct':10,'oktober':10,
-    'nov':11,'nopember':11,'des':12,'desember':12,'dec':12,
-    'jan':1,'januari':1,'feb':2,'februari':2,'mar':3,'maret':3};
 
-  // Find header row with 'NAMA'
+  const MMAP={'april':4,'mei':5,'juni':6,'juli':7,'agustus':8,'september':9,
+    'oktober':10,'november':11,'nopember':11,'desember':12,
+    'januari':1,'februari':2,'maret':3,
+    'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'agu':8,'sep':9,'oct':10,'okt':10,
+    'nov':11,'des':12,'dec':12,'jan':1,'feb':2,'mar':3};
+
+  // Find header row: row with 3+ "MonthName Year" patterns
   let hIdx=-1;
   for(let i=0;i<Math.min(10,rows.length);i++){
-    if(rows[i].some(c=>String(c||'').toLowerCase().trim()==='nama')){hIdx=i;break;}
+    const cnt=rows[i].filter(c=>{
+      const h=String(c||'').toLowerCase().trim();
+      return /^[a-zéèàüö]+\s+20\d{2}/.test(h);
+    }).length;
+    if(cnt>=3){hIdx=i;break;}
+  }
+  // Fallback: find row with 'nama'
+  if(hIdx<0){
+    for(let i=0;i<Math.min(10,rows.length);i++){
+      if(rows[i].some(c=>String(c||'').toLowerCase().includes('nama'))){hIdx=i;break;}
+    }
   }
   if(hIdx<0) return members;
+
   const hrow=rows[hIdx];
-  const namaCol=hrow.findIndex(c=>String(c||'').toLowerCase().trim()==='nama');
-  if(namaCol<0) return members;
 
-  // Look for "2026" label in rows above header to find where 2026 cols start
-  let yr2026StartCol=-1;
-  for(let r=0;r<hIdx;r++){
-    const row=rows[r];if(!row) continue;
-    for(let c=namaCol+1;c<row.length;c++){
-      if(String(row[c]||'').includes('2026')&&yr2026StartCol<0) yr2026StartCol=c;
-    }
-  }
-
-  // Build colMap from month names in header row
+  // Build colMap from month-year headers
   const colMap={};
-  let prevM=0,curYr=2025,mCnt=0;
-  for(let c=namaCol+1;c<hrow.length;c++){
+  let firstMonthCol=-1;
+  for(let c=0;c<hrow.length;c++){
     const h=String(hrow[c]||'').toLowerCase().trim();
-    const m=MMAP[h]||MMAP[h.substring(0,3)]||MMAP[h.substring(0,4)];
-    if(m!==undefined){
-      // Use year label if found, otherwise use month sequence
-      if(yr2026StartCol>0) curYr=c>=yr2026StartCol?2026:2025;
-      else if(prevM>=10&&m<=3) curYr=2026;
-      colMap[c]={year:curYr,month:m};
-      prevM=m;mCnt++;
+    // Try "MonthName Year" format e.g. "april 2025", "mei 2026"
+    const m2=h.match(/^([a-z]+)\s+(20\d{2})/);
+    if(m2){
+      const mn=m2[1],yr=parseInt(m2[2]);
+      const m=MMAP[mn]||MMAP[mn.substring(0,3)];
+      if(m!==undefined){
+        colMap[c]={year:yr,month:m};
+        if(firstMonthCol<0) firstMonthCol=c;
+      }
     }
   }
 
-  // Fallback: if no month names found, use position-based mapping
-  if(mCnt===0){
-    const m25=[4,5,6,7,8,9,10,11,12],m26=[1,2,3,4,5,6,7,8,9,10,11,12];
+  // Fallback: no month-year format, try plain month names (9 = 2025, rest = 2026)
+  if(Object.keys(colMap).length===0){
     let ci=0;
-    for(let c=namaCol+1;c<hrow.length&&ci<21;c++){
-      const yr=ci<9?2025:2026;
-      const mo=ci<9?m25[ci]:m26[ci-9];
-      if(mo) colMap[c]={year:yr,month:mo};
-      ci++;
+    const m25=[4,5,6,7,8,9,10,11,12],m26=[1,2,3,4,5,6,7,8,9,10,11,12];
+    for(let c=0;c<hrow.length&&ci<21;c++){
+      const h=String(hrow[c]||'').toLowerCase().trim();
+      const m=MMAP[h]||MMAP[h.substring(0,3)];
+      if(m!==undefined){
+        const mo=ci<9?m25[ci]:m26[ci-9];
+        if(mo){colMap[c]={year:ci<9?2025:2026,month:mo};if(firstMonthCol<0)firstMonthCol=c;}
+        ci++;
+      }
     }
   }
 
-  // Helper to parse payment amount
+  // namaCol = column just before first month column (or find 'nama' text)
+  let namaCol=hrow.findIndex(c=>/nama/i.test(String(c||'')));
+  if(namaCol<0) namaCol=firstMonthCol>0?firstMonthCol-1:1;
+
+  // Helper
   function parseAmt(raw){
     if(raw===null||raw===undefined||raw==='') return 0;
     if(typeof raw==='number') return Math.abs(raw);
@@ -334,11 +345,15 @@ function parseMon(rows){
     return Math.abs(parseFloat(v)||0);
   }
 
-  // Parse member rows
+  const EXCLUDE=['hendra gunawan','bambang sutarjo'];
+  const STOP_AT='joshua';
+
   for(let i=hIdx+1;i<rows.length;i++){
     const row=rows[i];if(!row) continue;
     const nama=String(row[namaCol]||'').trim();
     if(!nama||/total|jumlah|keterangan/i.test(nama)) continue;
+    const namaLow=nama.toLowerCase();
+    if(EXCLUDE.some(ex=>namaLow.includes(ex))) continue;
     let iuran=25000,lastPaid2026=0,firstPaid2026=0,hasPaid2025=false;
     Object.entries(colMap).forEach(([cStr,{year,month}])=>{
       const amt=parseAmt(row[parseInt(cStr)]);
@@ -353,6 +368,7 @@ function parseMon(rows){
     });
     const joinMonth=hasPaid2025?1:(firstPaid2026||3);
     members.push({n:nama,j:iuran>=100000?'P':'L',iu:iuran,lp:lastPaid2026,join:joinMonth});
+    if(namaLow.includes(STOP_AT)) break;
   }
   return members;
 }
@@ -424,8 +440,16 @@ async function loadData(){
       SALDO_AWAL_2025=r25.saldoAwal||1978291;
       ALLTX=[...r25.txs,...r26.txs];
       // Parse monitoring sheet → update MBR dynamically
-      if(data.mon){
+      if(data.members && data.members.length>0){
+        // Apps Script already processed member data — use directly
+        MBR.length=0;
+        data.members.forEach(m=>MBR.push(m));
+      } else if(data.mon){
+        // Fallback: parse raw monitoring data client-side
+        const debugRows=data.mon.slice(0,4).map(r=>r.slice(0,18).join(' | ')).join('\n');
+        console.log('MON rows 0-3:', debugRows);
         const monMembers=parseMon(data.mon);
+        console.log('parseMon result:', monMembers.length, 'members', monMembers[0]);
         if(monMembers.length>0){
           MBR.length=0;
           monMembers.forEach(m=>MBR.push(m));
