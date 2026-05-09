@@ -157,7 +157,7 @@ select:focus,input:focus{border-color:#1a3a5c;}
 <div id="pa"></div>
 
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwFDJjNV5oenhMUQPrPSFwmvwD3zDYvT2MDVw1egZHpdTaD1TJzJa98GBok-Ec6npzl/exec';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbza5W-R5MwhV4QMRNXwhjq3SJWeWDcnDmc-Bi0NwFtpcnxwBE7O8MA7VPmM43ni7vqN/exec';
 
 const fmt=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 const fmtS=n=>n>=1e6?'Rp'+(n/1e6).toFixed(2)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(0)+'rb':fmt(n);
@@ -641,39 +641,64 @@ function render(){
       {idx:10,y:2025,m:10,l:'Oktober 2025'},{idx:11,y:2025,m:11,l:'November 2025'},{idx:12,y:2025,m:12,l:'Desember 2025'},
       {idx:1,y:2026,m:1,l:'Januari 2026'},{idx:2,y:2026,m:2,l:'Februari 2026'},{idx:3,y:2026,m:3,l:'Maret 2026'},{idx:4,y:2026,m:4,l:'April 2026'},{idx:5,y:2026,m:5,l:'Mei 2026'},
     ];
-    const selBulan=BULAN_LIST[BULAN_LIST.length-1+ST.bulanFil-4]||BULAN_LIST[BULAN_LIST.length-1];
-
-    // Determine which members have paid up to selected month
-    // lp = last paid month index (1-12 for 2026, or 12 = fully paid 2025, etc.)
-    // For simplicity: bulanFil is the month number we're checking (1-12 for 2026, or special for 2025)
-    const bulanIdx=ST.bulanFil; // index in BULAN_LIST
+    const bulanIdx=ST.bulanFil;
     const selBulanObj=BULAN_LIST[bulanIdx];
 
-    // Calculate who hasn't paid for selected month
-    // lp is months paid in 2026 (0 = none, 5 = paid Jan-Mei 2026)
-    // For 2025 months, lp=12 means paid all 2025
-    function hasBayarBulan(m, bulanObj){
-      if(!bulanObj) return true;
-      if(bulanObj.y===2025) return true; // 2025 data based on lp>=12
-      if(bulanObj.y===2026){
-        // If member joined after this month, they don't owe it
-        if((m.join||1) > bulanObj.m) return true;
-        return m.lp >= bulanObj.m;
+    // Helper: get all unpaid months for a member from join date to now
+    function getUnpaid(m){
+      const now=new Date();
+      const curY=now.getFullYear()>=2026?now.getFullYear():2026;
+      const curM=now.getFullYear()>=2026?now.getMonth()+1:5;
+      const jY=m.joinYear||2025, jM=m.joinMonth||4;
+      const p25=m.paid2025||[], p26=m.paid2026||[];
+      // fallback for old format
+      if(!m.joinYear&&m.lp!==undefined){
+        const lp=m.lp||0,join=m.join||1;
+        const owed=Math.max(0,curM-Math.max(lp,join-1));
+        const res=[];for(let i=1;i<=owed;i++)res.push({y:2026,mo:Math.max(lp,join-1)+i});
+        return res;
       }
-      return false;
+      const unpaid=[];
+      let y=jY,mo=jM;
+      while(y<curY||(y===curY&&mo<=curM)){
+        const paid=(y===2025&&p25.includes(mo))||(y===2026&&p26.includes(mo));
+        if(!paid)unpaid.push({y,mo});
+        mo++;if(mo>12){mo=1;y++;}
+      }
+      return unpaid;
+    }
+    function getTb(m){return getUnpaid(m).length;}
+    function getNom(m){return getTb(m)*m.iu;}
+    function unpaidStr(m){
+      return getUnpaid(m).map(u=>MNMS[u.mo]+(u.y===2025?' 25':' 26')).join(', ')||'—';
+    }
+    function terbayarStr(m){
+      if(m.joinYear){
+        const p26=m.paid2026||[],p25=m.paid2025||[];
+        if(p26.length>0)return`s.d. ${MNMS[Math.max(...p26)]} 2026`;
+        if(p25.length>0)return`s.d. ${MNMS[Math.max(...p25)]} 2025`;
+        return'Belum ada pembayaran';
+      }
+      return m.lp>0?`s.d. ${MNMS[m.lp]} 2026`:'Belum ada 2026';
+    }
+    function hasBayarBulan(m,bulanObj){
+      if(!bulanObj)return true;
+      const jY=m.joinYear||2025,jM=m.joinMonth||1;
+      if(bulanObj.y<jY||(bulanObj.y===jY&&bulanObj.m<jM))return true;
+      if(m.joinYear){
+        const p25=m.paid2025||[],p26=m.paid2026||[];
+        return bulanObj.y===2025?p25.includes(bulanObj.m):p26.includes(bulanObj.m);
+      }
+      if(bulanObj.y===2025)return true;
+      return(m.lp||0)>=bulanObj.m;
     }
 
     const fMbr=jFil==='all'?MBR:MBR.filter(m=>m.j===jFil);
-    // tb = months owed, respecting join month
-    const getTb=m=>Math.max(0, DUE - Math.max(m.lp, (m.join||1)-1));
-    const tngL=fMbr.filter(m=>getTb(m)>0), lunasL=fMbr.filter(m=>getTb(m)===0);
-    const totTng=tngL.reduce((a,m)=>a+getTb(m)*m.iu,0);
-
-    // Per-month view
+    const tngL=fMbr.filter(m=>getTb(m)>0),lunasL=fMbr.filter(m=>getTb(m)===0);
+    const totTng=tngL.reduce((a,m)=>a+getNom(m),0);
     const belumBulan=fMbr.filter(m=>!hasBayarBulan(m,selBulanObj));
     const sudahBulan=fMbr.filter(m=>hasBayarBulan(m,selBulanObj));
-
-    const viewMode=ST.viewMode||'anggota'; // 'anggota' or 'bulan'
+    const blmByrSamaSekali=fMbr.filter(m=>{const p=(m.paid2025||[]).length+(m.paid2026||[]).length;return p===0&&getTb(m)>0;});
 
     const bulanRows=belumBulan.map(m=>`
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
@@ -681,38 +706,33 @@ function render(){
         <span class="tag tgo">Belum bayar</span>
       </div>`).join('');
 
-    cont=`${tngL.length>0?`<div class="nbox nr">⚠ ${tngL.length} anggota tunggakan s.d. Mei 2026 — estimasi ${fmt(totTng)}</div>`:''}
-    ${tngL.filter(m=>m.lp===0).length>0?`<div class="nbox nw">▸ ${tngL.filter(m=>m.lp===0).length} anggota belum bayar sama sekali di 2026</div>`:''}
-    ${lunasL.length>0?`<div class="nbox ng">✓ ${lunasL.length} anggota sudah lunas s.d. Mei 2026</div>`:''}
+    cont=`${tngL.length>0?`<div class="nbox nr">⚠ ${tngL.length} anggota memiliki tunggakan — estimasi ${fmt(totTng)}</div>`:''}
+    ${blmByrSamaSekali.length>0?`<div class="nbox nw">▸ ${blmByrSamaSekali.length} anggota belum ada pembayaran sama sekali</div>`:''}
+    ${lunasL.length>0?`<div class="nbox ng">✓ ${lunasL.length} anggota lunas s.d. bulan ini</div>`:''}
 
-    <div class="card"><div class="ct">Cek per bulan — siapa yang belum bayar?
-    </div>
+    <div class="card"><div class="ct">Cek per bulan — siapa yang belum bayar?</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <label style="font-size:12px;font-weight:600;color:var(--text2)">Pilih bulan:</label>
         <select style="width:180px;height:34px" onchange="ST.bulanFil=parseInt(this.value);render()">
           ${BULAN_LIST.map((b,i)=>`<option value="${i}" ${bulanIdx===i?'selected':''}>${b.l}</option>`).join('')}
         </select>
-        <span style="font-size:12px;color:var(--text2)">→ <strong style="color:var(--red)">${belumBulan.length} orang</strong> belum bayar · <strong style="color:var(--green)">${sudahBulan.length} orang</strong> sudah bayar</span>
+        <span style="font-size:12px;color:var(--text2)">→ <strong style="color:var(--red)">${belumBulan.length} orang</strong> belum · <strong style="color:var(--green)">${sudahBulan.length} orang</strong> sudah bayar</span>
       </div>
       ${belumBulan.length===0
         ?`<div style="background:var(--green-bg);border-radius:var(--r);padding:16px;text-align:center;color:var(--green);font-weight:600">✓ Semua anggota sudah bayar di ${selBulanObj?selBulanObj.l:'bulan ini'}!</div>`
         :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">❌ Belum bayar (${belumBulan.length})</div>
-            <div style="max-height:280px;overflow-y:auto">${bulanRows||'<div class="empty">Semua sudah bayar</div>'}</div>
-          </div>
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">✓ Sudah bayar (${sudahBulan.length})</div>
-            <div style="max-height:280px;overflow-y:auto">${sudahBulan.map(m=>`
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
-                <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'}</div></div>
-                <span class="tag tgi">✓ Bayar</span>
-              </div>`).join('')}</div>
-          </div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">❌ Belum bayar (${belumBulan.length})</div>
+          <div style="max-height:280px;overflow-y:auto">${bulanRows||'<div class="empty">Semua sudah bayar</div>'}</div></div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">✓ Sudah bayar (${sudahBulan.length})</div>
+          <div style="max-height:280px;overflow-y:auto">${sudahBulan.map(m=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+              <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'}</div></div>
+              <span class="tag tgi">✓ Bayar</span>
+            </div>`).join('')}</div></div>
         </div>`}
     </div>
 
-    <div class="card"><div class="ct">Status iuran per anggota — s.d. Mei 2026
+    <div class="card"><div class="ct">Status iuran per anggota
       <div class="ct-r">
         <button class="btn ${jFil==='all'?'act':''}" onclick="ST.jFil='all';render()">Semua</button>
         <button class="btn ${jFil==='P'?'act':''}" onclick="ST.jFil='P';render()">Pejabat</button>
@@ -722,18 +742,18 @@ function render(){
     <div class="mbr-row" style="font-size:11px;color:var(--text2);font-weight:700;padding-bottom:7px;border-bottom:2px solid var(--border2)">
       <div>Nama</div><div style="text-align:center">Status</div><div>Terbayar s.d.</div><div>Tunggakan</div><div>Bulan belum bayar</div>
     </div>
-    <div style="max-height:360px;overflow-y:auto">${fMbr.map(m=>{
-      const tb=getTb(m), nom=tb*m.iu;
+    <div style="max-height:400px;overflow-y:auto">${fMbr.map(m=>{
+      const tb=getTb(m),nom=getNom(m);
       return`<div class="mbr-row">
         <div><div style="font-weight:600">${m.n}</div><div style="font-size:11px;color:var(--text3)">${m.j==='P'?'Pejabat':'Pelaksana'} &middot; ${fmt(m.iu)}/bln</div></div>
         <div style="text-align:center">${tb===0?'<span class="tag tgi">Lunas</span>':`<span class="tag tgo">-${tb} bln</span>`}</div>
-        <div style="color:var(--text2)">${m.lp>0?`s.d. ${MNMS[m.lp]} 2026`:'Belum ada 2026'}</div>
+        <div style="color:var(--text2);font-size:11px">${terbayarStr(m)}</div>
         <div style="color:${tb>0?'var(--red)':'var(--text3)'};font-weight:${tb>0?700:400}">${tb>0?fmt(nom):'—'}</div>
-        <div style="color:var(--color-text-tertiary);font-size:11px">${tb>0?Array.from({length:tb},(_,i)=>MNMS[Math.max(m.lp, (m.join||1)-1)+i+1]).join(', '):'—'}</div>
+        <div style="color:var(--text3);font-size:11px">${unpaidStr(m)}</div>
       </div>`;
     }).join('')}</div>
     <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-      <span style="color:var(--text2)">Total tunggakan</span><span style="color:var(--red)">${fmt(tngL.reduce((a,m)=>a+getTb(m)*m.iu,0))}</span>
+      <span style="color:var(--text2)">Total tunggakan</span><span style="color:var(--red)">${fmt(totTng)}</span>
     </div></div>`;
   }
 
