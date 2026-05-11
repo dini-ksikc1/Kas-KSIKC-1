@@ -482,9 +482,12 @@ async function loadData(){
         }
         for(let i=rStart;i<rabRows.length;i++){
           const r=rabRows[i];
+          const noVal=r[noCol>=0?noCol:0];
+          // Hanya baris yang punya nomor urut (angka) di kolom No.
+          if(!noVal||isNaN(parseInt(noVal))) continue;
           const uraian=String(r[urCol>=0?urCol:1]||'').trim();
           const nominal=String(r[nomCol>=0?nomCol:2]||'').trim();
-          if(!uraian||/rencana|anggaran|biaya|no\.|uraian/i.test(uraian)) continue;
+          if(!uraian) continue;
           newRab.push({n:uraian,nom:nominal,kat:rabKat(uraian),note:''});
         }
         if(newRab.length>0) RAB_DATA.length=0,newRab.forEach(r=>RAB_DATA.push(r));
