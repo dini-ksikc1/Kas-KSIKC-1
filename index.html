@@ -482,12 +482,16 @@ async function loadData(){
         }
         for(let i=rStart;i<rabRows.length;i++){
           const r=rabRows[i];
-          const noVal=r[noCol>=0?noCol:0];
-          // Hanya baris yang punya nomor urut (angka) di kolom No.
-          if(!noVal||isNaN(parseInt(noVal))) continue;
-          const uraian=String(r[urCol>=0?urCol:1]||'').trim();
-          const nominal=String(r[nomCol>=0?nomCol:2]||'').trim();
-          if(!uraian) continue;
+          // Cari nomor urut (1-99) di kolom awal
+          let rowNo=-1,rowNoCol=-1;
+          for(let c=0;c<Math.min(3,r.length);c++){
+            const v=parseInt(String(r[c]||'').trim());
+            if(!isNaN(v)&&v>=1&&v<=99){rowNo=v;rowNoCol=c;break;}
+          }
+          if(rowNo<0) continue; // skip baris tanpa nomor urut
+          const uraian=String(r[rowNoCol+1]||'').trim();
+          const nominal=String(r[rowNoCol+2]||'').trim();
+          if(!uraian||uraian.length>80) continue;
           newRab.push({n:uraian,nom:nominal,kat:rabKat(uraian),note:''});
         }
         if(newRab.length>0) RAB_DATA.length=0,newRab.forEach(r=>RAB_DATA.push(r));
