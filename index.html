@@ -157,7 +157,7 @@ select:focus,input:focus{border-color:#1a3a5c;}
 <div id="pa"></div>
 
 <script>
-const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbza5W-R5MwhV4QMRNXwhjq3SJWeWDcnDmc-Bi0NwFtpcnxwBE7O8MA7VPmM43ni7vqN/exec';
+const APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbx8i8VtLeJvPK--jipf58v-Fs2Khd-wyhGQr56LcdLaiHz1sshBJxNmUycLcFiRvpbR/exec';
 
 const fmt=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 const fmtS=n=>n>=1e6?'Rp'+(n/1e6).toFixed(2)+'jt':n>=1e3?'Rp'+(n/1e3).toFixed(0)+'rb':fmt(n);
@@ -398,12 +398,12 @@ const MBR=[
 ];
 let DUE=5;
 const MNMS=['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-const RAB_DATA=[
-  {n:'Konsumsi DKO Bulanan',nom:'Rp 25.000/orang',kat:'Konsumsi DKO',note:'~30–35 org/bln'},
-  {n:'Snack Bersama / Snack Sore',nom:'Rp 100.000/minggu',kat:'Snack Bersama',note:'1× realisasi (Sep 2025)'},
-  {n:'Kado/Cenderamata & Apresiasi',nom:'Rp 500rb–1jt/orang',kat:'Kado/Apresiasi',note:'Pindah, pensiun, promosi'},
-  {n:'Uang Kedukaan Pegawai',nom:'Rp 500.000/orang',kat:'Uang Duka',note:'1× realisasi (Ilman)'},
-  {n:'Uang Lahiran Pegawai',nom:'Rp 500.000/orang',kat:'Uang Lahiran',note:'Belum ada realisasi'},
+let RAB_DATA=[
+  {n:'Snack untuk Konsumsi Bersama DKO',nom:'Rp 25.000/orang',kat:'Konsumsi DKO',note:''},
+  {n:'Cenderamata Pegawai Pindah/Pensiun',nom:'Rp 500rb–1jt/orang',kat:'Kado/Apresiasi',note:''},
+  {n:'Uang Kedukaan Pegawai',nom:'Rp 500.000/orang',kat:'Uang Duka',note:''},
+  {n:'Uang Lahiran Pegawai',nom:'Rp 500.000/orang',kat:'Uang Lahiran',note:''},
+  {n:'Snack untuk Konsumsi Bersama',nom:'Rp 25.000/orang',kat:'Snack Bersama',note:''},
 ];
 const RPT_MONTHS=[
   {y:2025,m:4,l:'April 2025'},{y:2025,m:5,l:'Mei 2025'},{y:2025,m:6,l:'Juni 2025'},
@@ -454,6 +454,40 @@ async function loadData(){
           MBR.length=0;
           monMembers.forEach(m=>MBR.push(m));
         }
+      }
+      // Parse RAB from Apps Script
+      if(data.rab&&data.rab.length>0){
+        const rabRows=data.rab;
+        // Find header row with 'uraian' or 'no'
+        let rHdr=-1;
+        for(let i=0;i<Math.min(8,rabRows.length);i++){
+          if(rabRows[i].some(c=>/uraian/i.test(String(c||'')))){rHdr=i;break;}
+        }
+        const rStart=rHdr>=0?rHdr+1:0;
+        const newRab=[];
+        // Detect columns
+        const hrow=rHdr>=0?rabRows[rHdr]:[];
+        const noCol=hrow.findIndex(c=>/^no/i.test(String(c||'').trim()));
+        const urCol=hrow.findIndex(c=>/uraian/i.test(String(c||'')));
+        const nomCol=hrow.findIndex(c=>/nominal/i.test(String(c||'')));
+        // KAT mapping by keywords
+        function rabKat(u){
+          const d=u.toLowerCase();
+          if(d.includes('dko')) return 'Konsumsi DKO';
+          if(d.includes('bersama')||d.includes('snack')) return 'Snack Bersama';
+          if(d.includes('pindah')||d.includes('pensiun')||d.includes('cenderamata')||d.includes('kado')) return 'Kado/Apresiasi';
+          if(d.includes('duka')||d.includes('kedukaan')) return 'Uang Duka';
+          if(d.includes('lahiran')) return 'Uang Lahiran';
+          return 'Pengeluaran Lain';
+        }
+        for(let i=rStart;i<rabRows.length;i++){
+          const r=rabRows[i];
+          const uraian=String(r[urCol>=0?urCol:1]||'').trim();
+          const nominal=String(r[nomCol>=0?nomCol:2]||'').trim();
+          if(!uraian||/rencana|anggaran|biaya|no\.|uraian/i.test(uraian)) continue;
+          newRab.push({n:uraian,nom:nominal,kat:rabKat(uraian),note:''});
+        }
+        if(newRab.length>0) RAB_DATA.length=0,newRab.forEach(r=>RAB_DATA.push(r));
       }
       // Dynamic DUE = current month in 2026
       const now=new Date();
